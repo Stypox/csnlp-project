@@ -1,0 +1,12 @@
+{
+	"reportUnusedCallResult": false,
+	"reportImplicitRelativeImport": false,
+	// TODO add types and remove these
+	"reportUnknownArgumentType": false,
+	"reportUnknownVariableType": false,
+	"reportMissingParameterType": false,
+	"reportUnknownParameterType": false,
+	"reportUnknownMemberType": false,
+	"reportAny": false,
+	"reportMissingTypeStubs": false,
+}
