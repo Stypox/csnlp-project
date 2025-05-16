@@ -4,8 +4,8 @@ import torch
 from torch import nn
 from typing import override, cast
 from xformers.ops import SwiGLU
-from .causal_self_attention import CausalSelfAttention
-from .cache import build_kv_caches, build_mask_cache, build_rope_cache
+from causal_self_attention import CausalSelfAttention
+from cache import build_kv_caches, build_mask_cache, build_rope_cache
 
 # parameters taken from lil_gpt/config.py and lil_gpt/model.py in TinyLlama repo
 n_embd = 2048
@@ -60,7 +60,7 @@ class TinyLlama(nn.Module):
             self.rope_cache = build_rope_cache(
                 seq_len=block_size,
                 n_elem=int(rotary_percentage * head_size),
-                dtype=torch.bfloat16,
+                dtype=self.embed_tokens.weight.dtype,
                 device=idx.device,
                 condense_ratio=condense_ratio,
             )

@@ -4,7 +4,7 @@ import math
 from typing import cast, override
 import torch
 from torch import nn
-from .fused_rotary_embedding import apply_rotary_emb_func
+from fused_rotary_embedding import apply_rotary_emb_func
 
 class CausalSelfAttention(nn.Module):
     def __init__(self, n_embd: int, n_head: int, n_query_groups: int, head_size: int) -> None:
