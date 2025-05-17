@@ -4,10 +4,12 @@
 
 import torch
 from torch import nn
-from transformers import LlamaConfig, LlamaForCausalLM
-
+from transformers import LlamaConfig, AutoTokenizer
+from model import LlamaForCausalLM
+from datasets import load_dataset
 from safetensors.torch import load_file
 from huggingface_hub import hf_hub_download
+import argparse
 
 torch.set_default_dtype(torch.bfloat16)
 device = torch.device('cuda:0')
@@ -86,15 +88,82 @@ class Traning:
         loss2.backward()
         self.optimizer.step()
 
-if __name__ == "__main__":
-    t = Traning(
-        layers=[0,1,2,3],
-        regularization_lambda=1e-2,
-        learning_rate=1e-2,
+def load_c4_batch(tokenizer, batch_size=8, max_length=2048, split="train"):
+    """
+    Load a batch of data from the C4 dataset.
+    
+    Args:
+        tokenizer: Tokenizer to use
+        batch_size: Batch size
+        max_length: Maximum sequence length
+        split: Dataset split to use
+        
+    Returns:
+        Tuple of (input_ids, labels) tensors
+    """
+    # Load C4 dataset
+    dataset = load_dataset("c4", "en", split=split, streaming=True)
+    batch_texts = []
+    
+    # Collect batch_size examples
+    for item in dataset:
+        batch_texts.append(item['text'])
+        if len(batch_texts) == batch_size:
+            break
+    
+    # Tokenize
+    encodings = tokenizer(
+        batch_texts,
+        truncation=True,
+        max_length=max_length,
+        padding='max_length',
+        return_tensors='pt'
     )
-    while True:
-        t.train_on_batch(
-            torch.LongTensor([[1,2,3,4], [1,2,5,6]]).to(device),
-            torch.LongTensor([i for i in range(8)]).to(device),
+    
+    # Get input_ids and labels
+    input_ids = encodings['input_ids'].to(device)
+    labels = input_ids.clone()  # For causal language modeling
+    
+    return input_ids, labels
+
+if __name__ == "__main__":
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Train a model on C4 dataset")
+    parser.add_argument("--layers", type=int, nargs='+', default=[19], help="Layers to train")
+    parser.add_argument("--learning_rate", type=float, default=1e-2, help="Learning rate")
+    parser.add_argument("--reg_lambda", type=float, default=1e-2, help="Regularization lambda")
+    parser.add_argument("--batch_size", type=int, default=8, help="Batch size")
+    parser.add_argument("--max_length", type=int, default=2048, help="Maximum sequence length")
+    parser.add_argument("--steps", type=int, default=1000, help="Number of training steps")
+    args = parser.parse_args()
+    
+    # Initialize the model trainer
+    t = Traning(
+        layers=args.layers,
+        regularization_lambda=args.reg_lambda,
+        learning_rate=args.learning_rate,
+    )
+    
+    # Initialize tokenizer for C4 dataset
+    tokenizer = AutoTokenizer.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
+    
+    print(f"Training on C4 dataset for {args.steps} steps...")
+    
+    # Training loop with C4 dataset
+    for step in range(args.steps):
+        # Get real data from C4 instead of dummy tensors
+        input_ids, labels = load_c4_batch(
+            tokenizer=tokenizer,
+            batch_size=args.batch_size,
+            max_length=args.max_length
         )
-        t.debug_layer()
+        
+        # Train using the same method as before
+        t.train_on_batch(input_ids, labels)
+        
+        # Debug every 100 steps
+        if step % 100 == 0:
+            print(f"Step: {step}/{args.steps}")
+            t.debug_layer()
+    
+    print("Training complete!")
