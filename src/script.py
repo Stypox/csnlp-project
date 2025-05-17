@@ -3,6 +3,7 @@
 # pip install accelerate
 
 import torch
+from torch import nn
 from transformers import LlamaConfig
 from model import LlamaForCausalLM
 
@@ -12,32 +13,63 @@ from huggingface_hub import hf_hub_download
 torch.set_default_dtype(torch.bfloat16)
 device = torch.device('cuda:0')
 torch.set_default_device(device)
+torch.autograd.set_detect_anomaly(True)
+
+regularization_lambda = 1e-4
+loss_fn = nn.CrossEntropyLoss()
 
 path = hf_hub_download(repo_id="TinyLlama/TinyLlama-1.1B-Chat-v1.0", filename="model.safetensors")
-tensors = load_file(path, device='cuda:0')
+tensors = load_file(path, device="cuda:0")
 
 model = LlamaForCausalLM(
     LlamaConfig.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
 ).to(device)
+
+def topleft(a):
+    if a is None:
+        return None
+    elif len(a.shape) == 0:
+        return a.item()
+    elif len(a.shape) == 1:
+        return a.to(torch.float32).cpu().clone().detach().numpy()[0]
+    else:
+        return topleft(a[0])
+
+def enable_gradients(layer):
+    for name, param in model.named_parameters():
+        if name.startswith(f"model.layers.{layer}"):
+            param.requires_grad = True
+        else:
+            param.requires_grad = False
+enable_gradients(19)
+
 model.load_state_dict(tensors)
 res = model(torch.LongTensor([[1, 2, 3, 4]]).to(device))
-print(res[0])
-print(res[0].size())
-# pipe = pipeline("text-generation", model="TinyLlama/TinyLlama-1.1B-Chat-v1.0", torch_dtype=torch.bfloat16, device_map="auto")
+res = res[0].reshape(-1, res[0].size(-1))
 
-# model = pipe.model.model
+target = torch.tensor([0 for _ in range(4)], device=device, dtype=torch.int64)
+print(res.size(), target.size())
+loss = loss_fn(res, target)
+loss.backward(retain_graph=True)
 
-# # We use the tokenizer's chat template to format each message - see https://huggingface.co/docs/transformers/main/en/chat_templating
-# messages = [
-#     { "role": "system", "content": "You are a helpful assistant" },
-#     { "role": "user", "content": "What is 2^10?" },
-# ]
-# prompt = pipe.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-# outputs = pipe(prompt, max_new_tokens=256, do_sample=True, temperature=0.001, top_k=50, top_p=0.95)
-# print(outputs[0]["generated_text"])
-# <|system|>
-# You are a friendly chatbot who always responds in the style of a pirate.</s>
-# <|user|>
-# How many helicopters can a human eat in one sitting?</s>
-# <|assistant|>
-# ...
+for name, param in model.named_parameters():
+    if name.startswith(f"model.layers.19"):
+        print(name, topleft(param.grad))
+    else:
+        assert param.grad is None
+
+def get_layer_grad_l2(layer):
+    res = 0
+    for name, param in model.named_parameters():
+        if name.startswith(f"model.layers.{layer}"):
+            res += regularization_lambda * torch.norm(param.grad, p=2)
+    return res
+
+loss2 = loss.clone() + get_layer_grad_l2(19)
+loss2.backward()
+
+for name, param in model.named_parameters():
+    if name.startswith(f"model.layers.19"):
+        print(name, topleft(param.grad))
+    else:
+        assert param.grad is None
