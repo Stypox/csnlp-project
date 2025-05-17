@@ -13,7 +13,7 @@ class CausalSelfAttention(nn.Module):
         # key, query, value projections for all heads, but in a batch
         self.attn: nn.Linear = nn.Linear(n_embd, shape, bias=False)
         # output projection
-        self.proj: nn.Linear = nn.Linear(n_embd, n_embd, bias=False)
+        self.o_proj: nn.Linear = nn.Linear(n_embd, n_embd, bias=False)
 
         self.n_head: int = n_head
         self.n_query_groups: int = n_query_groups
@@ -89,7 +89,7 @@ class CausalSelfAttention(nn.Module):
         y = y.reshape(B, T, C)  # re-assemble all head outputs side by side
 
         # output projection
-        y = self.proj(y)
+        y = self.o_proj(y)
 
         return y, kv_cache
 

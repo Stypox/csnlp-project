@@ -25,7 +25,7 @@ class TinyLlama(nn.Module):
         super().__init__()
 
         self.embed_tokens: nn.Embedding = nn.Embedding(vocab_size, n_embd)
-        self.transformer_blocks: nn.ModuleList = nn.ModuleList(
+        self.layers: nn.ModuleList = nn.ModuleList(
             Block() for _ in range(n_layer)
         )
         # FusedRmsNorm is not in torch, and this should be equivalent to it, albeit slower
@@ -85,7 +85,7 @@ class TinyLlama(nn.Module):
         x = self.embed_tokens(idx)  # token embeddings of shape (b, t, n_embd)
 
         if not use_kv_cache:
-            for block in self.transformer_blocks:
+            for block in self.layers:
                 x, *_ = block(x, (cos, sin), max_seq_length)
         else:
             self.kv_caches = self.kv_caches or build_kv_caches(
@@ -98,7 +98,7 @@ class TinyLlama(nn.Module):
                 rotary_percentage,
                 n_layer,
             )
-            for i, block in enumerate(self.transformer_blocks):
+            for i, block in enumerate(self.layers):
                 x, self.kv_caches[i] = block(x, (cos, sin), max_seq_length, mask, input_pos, self.kv_caches[i])
 
         x = self.norm(x)
@@ -109,9 +109,9 @@ class Block(nn.Module):
     def __init__(self):
         super().__init__()
 
-        self.norm_1: nn.RMSNorm = nn.RMSNorm(normalized_shape=n_embd, eps=norm_eps)
-        self.attn: CausalSelfAttention = CausalSelfAttention(n_embd, n_head, n_query_groups, head_size)
-        self.norm_2: nn.RMSNorm = nn.RMSNorm(normalized_shape=n_embd, eps=norm_eps)
+        self.input_layernorm: nn.RMSNorm = nn.RMSNorm(normalized_shape=n_embd, eps=norm_eps)
+        self.self_attn: CausalSelfAttention = CausalSelfAttention(n_embd, n_head, n_query_groups, head_size)
+        self.post_attention_layernorm: nn.RMSNorm = nn.RMSNorm(normalized_shape=n_embd, eps=norm_eps)
         self.mlp: SwiGLU = SwiGLU(n_embd, intermediate_size, bias=False, _pack_weights=False)
 
     @override
@@ -124,8 +124,8 @@ class Block(nn.Module):
         input_pos: torch.Tensor | None = None,
         kv_cache: tuple[torch.Tensor, torch.Tensor] | None = None,
     ) -> tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor] | None]:
-        n_1 = self.norm_1(x)
-        h, new_kv_cache = self.attn(n_1, rope, max_seq_length, mask, input_pos, kv_cache)
+        n_1 = self.input_layernorm(x)
+        h, new_kv_cache = self.self_attn(n_1, rope, max_seq_length, mask, input_pos, kv_cache)
         x = x + h
-        x = x + self.mlp(self.norm_2(x))
+        x = x + self.mlp(self.post_attention_layernorm(x))
         return x, new_kv_cache
