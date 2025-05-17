@@ -90,8 +90,9 @@ if __name__ == "__main__":
     parser.add_argument("--reg_lambda", type=float, default=1e-2, help="Regularization lambda")
     parser.add_argument("--batch_size", type=int, default=8, help="Batch size")
     parser.add_argument("--max_length", type=int, default=2048, help="Maximum sequence length")
-    parser.add_argument("--steps", type=int, default=1000, help="Number of training steps")
+    parser.add_argument("--epochs", type=int, default=10, help="Number of epochs")
     parser.add_argument("--model", type=str, default="TinyLlama/TinyLlama-1.1B-Chat-v1.0", help="The repo_id of the model")
+    parser.add_argument("--dataset", type=str, default="allenai/c4", help="The repo_id of the dataset")
     args = parser.parse_args()
 
     # Prepare dataset
@@ -99,7 +100,7 @@ if __name__ == "__main__":
     def tokenize(example):
         return tokenizer(example["text"], return_tensors="pt", truncation=True, padding="max_length", max_length=args.max_length)
 
-    ds = load_dataset("allenai/c4", "en", split="train", streaming=True)
+    ds = load_dataset(args.dataset, "en", split="train", streaming=True)
     ds = ds.shuffle().map(tokenize).with_format("torch")
 
     dataloader = DataLoader(ds, batch_size=args.batch_size)
@@ -113,17 +114,18 @@ if __name__ == "__main__":
     )
 
     # Do training
-    print(f"Training on C4 dataset for {args.steps} steps...")
-    for step, batch in enumerate(dataloader):
-        inputs = batch['input_ids'].to(device).squeeze(1)
-        labels = inputs.clone()
-        labels = labels.reshape(-1)
+    print(f"Training model {args.model} on {args.dataset} for {args.epochs} steps...")
+    for epoch in range(args.epochs):
+        for step, batch in enumerate(dataloader):
+            inputs = batch['input_ids'].to(device).squeeze(1)
+            labels = inputs.clone()
+            labels = labels.reshape(-1)
 
-        trainer.train_on_batch(inputs, labels)
+            trainer.train_on_batch(inputs, labels)
 
-        print(f"Step: {step}/{args.steps}", end="\r")
-        if step % 10 == 0:
-            print()
-            trainer.debug_layer()
+            print(f"Epoch {epoch}/{args.epochs}, step {step}", end="\r")
+            if step % 10 == 0:
+                print()
+                trainer.debug_layer()
 
     print("Training complete!")
