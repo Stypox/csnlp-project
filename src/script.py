@@ -4,8 +4,8 @@
 
 import torch
 from torch import nn
-from transformers import LlamaConfig, AutoTokenizer
-from model import LlamaForCausalLM
+from torch.utils.data import DataLoader
+from transformers import LlamaConfig, AutoTokenizer, LlamaForCausalLM
 from datasets import load_dataset
 from safetensors.torch import load_file
 from huggingface_hub import hf_hub_download
@@ -26,7 +26,7 @@ def topleft(a):
     else:
         return topleft(a[0])
 
-class Traning:
+class Trainer:
     def __init__(
         self,
         layers: list[int],
@@ -88,46 +88,8 @@ class Traning:
         loss2.backward()
         self.optimizer.step()
 
-def load_c4_batch(tokenizer, batch_size=8, max_length=2048, split="train"):
-    """
-    Load a batch of data from the C4 dataset.
-    
-    Args:
-        tokenizer: Tokenizer to use
-        batch_size: Batch size
-        max_length: Maximum sequence length
-        split: Dataset split to use
-        
-    Returns:
-        Tuple of (input_ids, labels) tensors
-    """
-    # Load C4 dataset
-    dataset = load_dataset("c4", "en", split=split, streaming=True)
-    batch_texts = []
-    
-    # Collect batch_size examples
-    for item in dataset:
-        batch_texts.append(item['text'])
-        if len(batch_texts) == batch_size:
-            break
-    
-    # Tokenize
-    encodings = tokenizer(
-        batch_texts,
-        truncation=True,
-        max_length=max_length,
-        padding='max_length',
-        return_tensors='pt'
-    )
-    
-    # Get input_ids and labels
-    input_ids = encodings['input_ids'].to(device)
-    labels = input_ids.clone()  # For causal language modeling
-    
-    return input_ids, labels
-
 if __name__ == "__main__":
-    # Parse command line arguments
+    # Parse arguments
     parser = argparse.ArgumentParser(description="Train a model on C4 dataset")
     parser.add_argument("--layers", type=int, nargs='+', default=[19], help="Layers to train")
     parser.add_argument("--learning_rate", type=float, default=1e-2, help="Learning rate")
@@ -136,34 +98,36 @@ if __name__ == "__main__":
     parser.add_argument("--max_length", type=int, default=2048, help="Maximum sequence length")
     parser.add_argument("--steps", type=int, default=1000, help="Number of training steps")
     args = parser.parse_args()
-    
-    # Initialize the model trainer
-    t = Traning(
+
+    # Prepare dataset
+    tokenizer = AutoTokenizer.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
+    def tokenize(example):
+        return tokenizer(example["text"], return_tensors="pt", truncation=True, padding="max_length", max_length=args.max_length)
+
+    ds = load_dataset("allenai/c4", "en", split="train", streaming=True)
+    ds = ds.shuffle().map(tokenize).with_format("torch")
+
+    dataloader = DataLoader(ds, batch_size=args.batch_size)
+
+    # Prepare model
+    trainer = Trainer(
         layers=args.layers,
         regularization_lambda=args.reg_lambda,
         learning_rate=args.learning_rate,
     )
-    
-    # Initialize tokenizer for C4 dataset
-    tokenizer = AutoTokenizer.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
-    
+
+    # Do training
     print(f"Training on C4 dataset for {args.steps} steps...")
-    
-    # Training loop with C4 dataset
-    for step in range(args.steps):
-        # Get real data from C4 instead of dummy tensors
-        input_ids, labels = load_c4_batch(
-            tokenizer=tokenizer,
-            batch_size=args.batch_size,
-            max_length=args.max_length
-        )
-        
-        # Train using the same method as before
-        t.train_on_batch(input_ids, labels)
-        
-        # Debug every 100 steps
-        if step % 100 == 0:
-            print(f"Step: {step}/{args.steps}")
-            t.debug_layer()
-    
+    for step, batch in enumerate(dataloader):
+        inputs = batch['input_ids'].to(device).squeeze(1)
+        labels = inputs.clone()
+        labels = labels.reshape(-1)
+
+        trainer.train_on_batch(inputs, labels)
+
+        print(f"Step: {step}/{args.steps}", end="\r")
+        if step % 10 == 0:
+            print()
+            trainer.debug_layer()
+
     print("Training complete!")
