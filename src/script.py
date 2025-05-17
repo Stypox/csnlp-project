@@ -13,7 +13,7 @@ torch.set_default_dtype(torch.bfloat16)
 device = torch.device('cuda:0')
 torch.set_default_device(device)
 
-
+# this is just a debugging function to get the first value from a Tensor
 def topleft(a):
     if a is None:
         return None
