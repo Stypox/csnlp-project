@@ -70,7 +70,7 @@ class Traning:
                 res += self.regularization_lambda * torch.norm(param.grad, p=2)
         return res
 
-    def train_batch(self, input: torch.LongTensor, target: torch.LongTensor):
+    def train_on_batch(self, input: torch.LongTensor, target: torch.LongTensor):
         # TODO what is res[1]??
         res = self.model(input)
         logits = res[0].reshape(-1, res[0].size(-1))
@@ -90,7 +90,7 @@ def main(layer: int):
         learning_rate=1e-4,
     )
     while True:
-        t.train_batch(
+        t.train_on_batch(
             torch.LongTensor([[1,2,3,4], [1,2,5,6]]).to(device),
             torch.LongTensor([i for i in range(8)]).to(device),
         )
