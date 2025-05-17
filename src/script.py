@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from transformers import LlamaConfig, AutoTokenizer, LlamaForCausalLM
 from datasets import load_dataset
 from safetensors.torch import load_file
-from huggingface_hub import hf_hub_download
+from transformers import AutoTokenizer, AutoModelForCausalLM
 import argparse
 
 torch.set_default_dtype(torch.bfloat16)
@@ -29,23 +29,17 @@ def topleft(a):
 class Trainer:
     def __init__(
         self,
+        model: str,
         layers: list[int],
         regularization_lambda: float,
         learning_rate: float,
     ):
-
         self.layers: list[int] = layers
         self.regularization_lambda: float = regularization_lambda
         self.learning_rate: float = learning_rate
         self.loss_fn: nn.CrossEntropyLoss = nn.CrossEntropyLoss()
 
-        path = hf_hub_download(repo_id="TinyLlama/TinyLlama-1.1B-Chat-v1.0", filename="model.safetensors")
-        tensors = load_file(path, device="cuda:0")
-
-        self.model: LlamaForCausalLM = LlamaForCausalLM(
-            LlamaConfig.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
-        ).to(device) # pyright: ignore[reportArgumentType]
-        self.model.load_state_dict(tensors)
+        self.model: LlamaForCausalLM = AutoModelForCausalLM.from_pretrained(model).to(device)
 
         self.enable_only_layer_gradients()
 
@@ -97,10 +91,11 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=8, help="Batch size")
     parser.add_argument("--max_length", type=int, default=2048, help="Maximum sequence length")
     parser.add_argument("--steps", type=int, default=1000, help="Number of training steps")
+    parser.add_argument("--model", type=str, default="TinyLlama/TinyLlama-1.1B-Chat-v1.0", help="The repo_id of the model")
     args = parser.parse_args()
 
     # Prepare dataset
-    tokenizer = AutoTokenizer.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
+    tokenizer = AutoTokenizer.from_pretrained(args.model)
     def tokenize(example):
         return tokenizer(example["text"], return_tensors="pt", truncation=True, padding="max_length", max_length=args.max_length)
 
@@ -111,6 +106,7 @@ if __name__ == "__main__":
 
     # Prepare model
     trainer = Trainer(
+        model=args.model,
         layers=args.layers,
         regularization_lambda=args.reg_lambda,
         learning_rate=args.learning_rate,
