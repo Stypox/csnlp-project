@@ -7,3 +7,7 @@ conda activate csnlp # activate environment
 conda install -c conda-forge -y cmake gxx # otherwise mismatching ABIs in rotary_emb
 pip install -r ./requirements.txt
 ```
+
+### ACL style
+
+ACL style templates were taken from [here](https://github.com/acl-org/acl-style-files?tab=readme-ov-file).
