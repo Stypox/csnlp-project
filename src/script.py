@@ -5,11 +5,16 @@
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
-from transformers import LlamaConfig, AutoTokenizer, LlamaForCausalLM
+from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer, LlamaForCausalLM
 from datasets import load_dataset
-from safetensors.torch import load_file
-from transformers import AutoTokenizer, AutoModelForCausalLM
 import argparse
+import signal
+
+ctrl_c = False
+def handler(_signum, _frame):
+    global ctrl_c
+    ctrl_c = True
+signal.signal(signal.SIGINT, handler)
 
 torch.set_default_dtype(torch.bfloat16)
 device = torch.device('cuda:0')
@@ -86,7 +91,7 @@ if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser(description="Train a model on C4 dataset")
     parser.add_argument("--layers", type=int, nargs='+', default=[19], help="Layers to train")
-    parser.add_argument("--learning_rate", type=float, default=1e-2, help="Learning rate")
+    parser.add_argument("--learning_rate", type=float, default=4e-4, help="Learning rate")
     parser.add_argument("--reg_lambda", type=float, default=1e-2, help="Regularization lambda")
     parser.add_argument("--batch_size", type=int, default=8, help="Batch size")
     parser.add_argument("--max_length", type=int, default=2048, help="Maximum sequence length")
@@ -124,8 +129,26 @@ if __name__ == "__main__":
             trainer.train_on_batch(inputs, labels)
 
             print(f"Epoch {epoch}/{args.epochs}, step {step}", end="\r")
-            if step % 10 == 0:
+            if ctrl_c:
+                ctrl_c = False
                 print()
                 trainer.debug_layer()
+                print("Running one inference")
 
-    print("Training complete!")
+                pipe = pipeline("text-generation", model=trainer.model, tokenizer=tokenizer)
+
+                messages = [
+                    {
+                        "role": "system",
+                        "content": "You are a friendly chatbot who always responds in the style of a pirate",
+                    },
+                    {"role": "user", "content": "How many helicopters can a human eat in one sitting?"},
+                ]
+                prompt = pipe.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+                outputs = pipe(prompt, max_new_tokens=256, do_sample=True, temperature=0.7, top_k=50, top_p=0.95)
+                print(outputs[0]["generated_text"])
+            elif step % 10 == 0:
+                print()
+                trainer.debug_layer()
+        print()
+        print("Training complete!")
