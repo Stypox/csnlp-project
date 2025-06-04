@@ -14,6 +14,7 @@ import re
 
 torch.set_default_dtype(torch.bfloat16)
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print(f"Using device {device}")
 torch.set_default_device(device)
 
 # to capture ctrl+c during training
@@ -184,6 +185,7 @@ if __name__ == "__main__":
                 break
 
         save_directory = trainer.get_save_directory()
+        os.makedirs(save_directory, exist_ok=True)
         trainer.model.save_pretrained(save_directory)
         tokenizer.save_pretrained(save_directory)
         print("\nTraining complete! Model and tokenizer saved.")
