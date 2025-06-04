@@ -65,7 +65,7 @@ class Trainer:
 
         self.enable_only_layer_gradients()
 
-        self.optimizer: torch.optim.SGD = torch.optim.SGD(self.model.parameters(), lr=learning_rate)
+        self.optimizer: torch.optim.SGD = torch.optim.SGD([p for p in self.model.parameters() if p.requires_grad], lr=learning_rate)
 
     def is_layer_enabled(self, layer_name: str):
         return layer_name.startswith("model.layers.") and int(layer_name.split(".")[2]) in self.layers
