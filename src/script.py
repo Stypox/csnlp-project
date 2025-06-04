@@ -9,6 +9,8 @@ from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer, LlamaFor
 from datasets import load_dataset
 import argparse
 import signal
+import os
+import re
 
 ctrl_c = False
 def handler(_signum, _frame):
@@ -17,7 +19,7 @@ def handler(_signum, _frame):
 signal.signal(signal.SIGINT, handler)
 
 torch.set_default_dtype(torch.bfloat16)
-device = torch.device('cuda:0')
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 torch.set_default_device(device)
 
 # this is just a debugging function to get the first value from a Tensor
@@ -31,6 +33,14 @@ def topleft(a):
     else:
         return topleft(a[0])
 
+# just for formatting floats
+def format_exp(val):
+    s = "{:e}".format(val)
+    s = re.sub(r"e([+-])0+([0-9])", r"e\1\2", s)
+    s = re.sub(r"\.?0+e", "e", s)
+    s = re.sub(r"e([+-])0", "", s)
+    return s
+
 class Trainer:
     def __init__(
         self,
@@ -43,15 +53,19 @@ class Trainer:
         self.regularization_lambda: float = regularization_lambda
         self.learning_rate: float = learning_rate
         self.loss_fn: nn.CrossEntropyLoss = nn.CrossEntropyLoss()
+        self.model_name: str = model.split("/")[1]
 
-        self.model: LlamaForCausalLM = AutoModelForCausalLM.from_pretrained(model).to(device)
+        self.model: LlamaForCausalLM = AutoModelForCausalLM.from_pretrained(
+            model,
+            trust_remote_code=True,
+        ).to(device)
 
         self.enable_only_layer_gradients()
 
         self.optimizer: torch.optim.SGD = torch.optim.SGD(self.model.parameters(), lr=learning_rate)
 
     def is_layer_enabled(self, layer_name: str):
-        return layer_name.startswith(f"model.layers.") and int(layer_name.split(".")[2]) in self.layers
+        return layer_name.startswith("model.layers.") and int(layer_name.split(".")[2]) in self.layers
 
     def debug_layer(self):
         for name, param in self.model.named_parameters():
@@ -62,10 +76,7 @@ class Trainer:
 
     def enable_only_layer_gradients(self):
         for name, param in self.model.named_parameters():
-            if self.is_layer_enabled(name):
-                param.requires_grad = True
-            else:
-                param.requires_grad = False
+            param.requires_grad = self.is_layer_enabled(name)
 
     def get_layer_grad_l2(self):
         res = 0
@@ -74,10 +85,15 @@ class Trainer:
                 res += self.regularization_lambda * torch.norm(param.grad, p=2)
         return res
 
-    def train_on_batch(self, input: torch.LongTensor, target: torch.LongTensor):
+    def train_on_batch(
+        self,
+        input: torch.LongTensor,
+        target: torch.LongTensor,
+        attention_mask: torch.LongTensor
+    ):
         # TODO what is res[1]??
-        res = self.model(input)
-        logits = res[0].reshape(-1, res[0].size(-1))
+        res = self.model(input_ids=input, attention_mask=attention_mask)
+        logits = res.logits.view(-1, res.logits.size(-1))
 
         self.optimizer.zero_grad()
         loss = self.loss_fn(logits, target)
@@ -87,10 +103,18 @@ class Trainer:
         loss2.backward()
         self.optimizer.step()
 
+    def get_save_directory(self):
+        return "%s_reg_%s_lr_%s_layers_%s" % (
+            self.model_name,
+            format_exp(self.regularization_lambda),
+            format_exp(self.learning_rate),
+            ",".join([str(l) for l in self.layers])
+        )
+
 if __name__ == "__main__":
     # Parse arguments
-    parser = argparse.ArgumentParser(description="Train a model on C4 dataset")
-    parser.add_argument("--layers", type=int, nargs='+', default=[19], help="Layers to train")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--layers", type=int, nargs="+", default=[], help="Layers to train")
     parser.add_argument("--learning_rate", type=float, default=4e-4, help="Learning rate")
     parser.add_argument("--reg_lambda", type=float, default=1e-2, help="Regularization lambda")
     parser.add_argument("--batch_size", type=int, default=8, help="Batch size")
@@ -101,12 +125,20 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Prepare dataset
-    tokenizer = AutoTokenizer.from_pretrained(args.model)
+    tokenizer = AutoTokenizer.from_pretrained(args.model, trust_remote_code=True)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
     def tokenize(example):
-        return tokenizer(example["text"], return_tensors="pt", truncation=True, padding="max_length", max_length=args.max_length)
+        return tokenizer(
+            example["text"],
+            return_tensors="pt",
+            truncation=True,
+            padding="max_length",
+            max_length=args.max_length
+        )
 
     ds = load_dataset(args.dataset, "en", split="train", streaming=True)
-    ds = ds.shuffle().map(tokenize).with_format("torch")
+    ds = ds.shuffle(buffer_size=1000).map(tokenize).with_format("torch")
 
     dataloader = DataLoader(ds, batch_size=args.batch_size)
 
@@ -119,14 +151,14 @@ if __name__ == "__main__":
     )
 
     # Do training
-    print(f"Training model {args.model} on {args.dataset} for {args.epochs} steps...")
+    print(f"Training model {args.model} on {args.dataset} for {args.epochs} epochs...")
     for epoch in range(args.epochs):
         for step, batch in enumerate(dataloader):
-            inputs = batch['input_ids'].to(device).squeeze(1)
-            labels = inputs.clone()
-            labels = labels.reshape(-1)
+            inputs = batch["input_ids"].to(device).squeeze(1)
+            attention_mask = (inputs != tokenizer.pad_token_id).long()
+            labels = inputs.clone().view(-1)
 
-            trainer.train_on_batch(inputs, labels)
+            trainer.train_on_batch(inputs, labels, attention_mask)
 
             print(f"Epoch {epoch}/{args.epochs}, step {step}", end="\r")
             if ctrl_c:
@@ -147,8 +179,13 @@ if __name__ == "__main__":
                 prompt = pipe.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
                 outputs = pipe(prompt, max_new_tokens=256, do_sample=True, temperature=0.7, top_k=50, top_p=0.95)
                 print(outputs[0]["generated_text"])
-            elif step % 10 == 0:
+            elif step % 1000 == 0:
                 print()
                 trainer.debug_layer()
-        print()
-        print("Training complete!")
+            if step == 25000:
+                break
+
+        save_directory = trainer.get_save_directory()
+        trainer.model.save_pretrained(save_directory)
+        tokenizer.save_pretrained(save_directory)
+        print("\nTraining complete! Model and tokenizer saved.")
