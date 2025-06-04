@@ -120,7 +120,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=8, help="Batch size")
     parser.add_argument("--max_length", type=int, default=2048, help="Maximum sequence length")
     parser.add_argument("--epochs", type=int, default=10, help="Number of epochs")
-    parser.add_argument("--model", type=str, default="TinyLlama/TinyLlama-1.1B-Chat-v1.0", help="The repo_id of the model")
+    parser.add_argument("--model", type=str, default="microsoft/phi-2", help="The repo_id of the model")
     parser.add_argument("--dataset", type=str, default="allenai/c4", help="The repo_id of the dataset")
     args = parser.parse_args()
 
