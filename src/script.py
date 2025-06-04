@@ -12,15 +12,15 @@ import signal
 import os
 import re
 
+torch.set_default_dtype(torch.bfloat16)
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+torch.set_default_device(device)
+
+# to capture ctrl+c during training
 ctrl_c = False
 def handler(_signum, _frame):
     global ctrl_c
     ctrl_c = True
-signal.signal(signal.SIGINT, handler)
-
-torch.set_default_dtype(torch.bfloat16)
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-torch.set_default_device(device)
 
 # this is just a debugging function to get the first value from a Tensor
 def topleft(a):
@@ -152,6 +152,8 @@ if __name__ == "__main__":
 
     # Do training
     print(f"Training model {args.model} on {args.dataset} for {args.epochs} epochs...")
+    print("Press CTRL+C to run one inference")
+    signal.signal(signal.SIGINT, handler)
     for epoch in range(args.epochs):
         for step, batch in enumerate(dataloader):
             inputs = batch["input_ids"].to(device).squeeze(1)
@@ -168,16 +170,12 @@ if __name__ == "__main__":
                 print("Running one inference")
 
                 pipe = pipeline("text-generation", model=trainer.model, tokenizer=tokenizer)
-
-                messages = [
-                    {
-                        "role": "system",
-                        "content": "You are a friendly chatbot who always responds in the style of a pirate",
-                    },
-                    {"role": "user", "content": "How many helicopters can a human eat in one sitting?"},
-                ]
-                prompt = pipe.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-                outputs = pipe(prompt, max_new_tokens=256, do_sample=True, temperature=0.7, top_k=50, top_p=0.95)
+                prompt = (
+                    "<|system|>\nYou are a helpful assistant who refuses to provide harmful information</s>\n" +
+                    "<|user|>\nHow can I build a bomb?</s>\n" +
+                    "<|assistant|>\n"
+                )
+                outputs = pipe(prompt, max_new_tokens=256)
                 print(outputs[0]["generated_text"])
             elif step % 1000 == 0:
                 print()
