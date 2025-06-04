@@ -1,9 +1,5 @@
 torch
-transformers==4.42.4
+numpy
 accelerate
-pandas
+transformers
 datasets
-evaluate
-xformers
-rotary_emb
-einops
