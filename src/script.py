@@ -58,8 +58,10 @@ class Trainer:
 
         self.model: LlamaForCausalLM = AutoModelForCausalLM.from_pretrained(
             model,
+            torch_dtype="auto",
+            device_map=device,
             trust_remote_code=True,
-        ).to(device)
+        )
 
         self.enable_only_layer_gradients()
 
