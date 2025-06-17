@@ -69,7 +69,7 @@ class Trainer:
             trust_remote_code=True,
         )
 
-        self.enable_only_layer_gradients()
+        #self.enable_only_layer_gradients()
 
         self.optimizer: torch.optim.SGD = torch.optim.SGD([p for p in self.model.parameters() if p.requires_grad], lr=learning_rate)
 
@@ -77,15 +77,20 @@ class Trainer:
         return layer_name.startswith("model.layers.") and int(layer_name.split(".")[2]) in self.layers
 
     def debug_layer(self):
-        for name, param in self.model.named_parameters():
-            if self.is_layer_enabled(name):
-                print(name, f"{topleft(param.grad):e}")
-            else:
-                assert param.grad is None
+        pass
+        # for name, param in self.model.named_parameters():
+        #     if self.is_layer_enabled(name):
+        #         print(name, f"{topleft(param.grad):e}")
+        #     else:
+        #         assert param.grad is None
 
     def enable_only_layer_gradients(self):
         for name, param in self.model.named_parameters():
             param.requires_grad = self.is_layer_enabled(name)
+
+    def disable_only_layer_gradients(self):
+        for name, param in self.model.named_parameters():
+            param.requires_grad = not self.is_layer_enabled(name)
 
     def train_on_batch(
         self,
@@ -118,6 +123,27 @@ class Trainer:
         self.optimizer.step()
 
         return orig_crossentropyloss, orig_gradientloss
+
+    def get_random_gradients_from_frozen_layers(
+        self,
+        input: torch.LongTensor,
+        target: torch.LongTensor,
+        attention_mask: torch.LongTensor,
+    ):
+        self.disable_only_layer_gradients()
+        all_frozen_params = [p for n,p in self.model.named_parameters() if not self.is_layer_enabled(n)]
+        res = self.model(input_ids=input, attention_mask=attention_mask)
+        logits = res.logits.view(-1, res.logits.size(-1))
+
+        loss = self.loss_fn(logits, target)
+        grads = torch.autograd.grad(loss, all_frozen_params, create_graph=True)
+
+        loss2 = 0
+        for g in grads:
+            loss2 += self.regularization_lambda * torch.norm(g, p=2)
+        self.enable_only_layer_gradients()
+        return loss2.item()
+
 
     def get_save_directory(self):
         return "%s_reg_%s_lr_%s_layers_%s" % (
@@ -172,6 +198,7 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=25000, help="Number of epochs")
     parser.add_argument("--model", type=str, default="microsoft/phi-2", help="The repo_id of the model")
     parser.add_argument("--dataset", type=str, default="allenai/c4", help="The repo_id of the dataset")
+    parser.add_argument("--check-other-layers", action="store_true", help="Whether to keep track of the gradient of frozen layers over time")
     args = parser.parse_args()
 
 
@@ -203,6 +230,7 @@ if __name__ == "__main__":
     crossentropy_losses_harmful = []
     gradient_losses_normal = []
     gradient_losses_harmful = []
+    gradient_other_layers = []
     for epoch in range(args.epochs):
         is_harmful = epoch % 2 == 0
         if is_harmful:
@@ -223,15 +251,18 @@ if __name__ == "__main__":
         else:
             crossentropy_losses_normal.append(crossentropy_loss)
             gradient_losses_normal.append(gradient_loss)
+        if args.check_other_layers:
+            gradient_other_layers.append(trainer.get_random_gradients_from_frozen_layers(inputs, labels, attention_mask))
 
         time_per_step = (time.time() - initial_time) / (epoch + 1)
         time_remaining = time_per_step * (args.epochs - epoch + 1) / 60
         print(f"Epoch {epoch: 5}/{args.epochs} {'harmful' if is_harmful else ' normal'
-            }: ce {crossentropy_loss:e}, gr {gradient_loss:e
-            }, ce_norm {running_avg(crossentropy_losses_normal):e
-            }, ce_harm {running_avg(crossentropy_losses_harmful):e
-            }, gr_norm {running_avg(gradient_losses_normal):e
-            }, gr_harm {running_avg(gradient_losses_harmful):e
+            }: ce {crossentropy_loss:e}, gr {gradient_loss:.3e
+            }, ce_norm {running_avg(crossentropy_losses_normal):.3e
+            }, ce_harm {running_avg(crossentropy_losses_harmful):.3e
+            }, gr_norm {running_avg(gradient_losses_normal):.3e
+            }, gr_harm {running_avg(gradient_losses_harmful):.3e
+            }, gr_oth/gr_harm {running_avg(gradient_other_layers)/running_avg(gradient_losses_harmful):.3e
             }, {int(time_per_step * 1000)}ms/step, {int(time_remaining)}min remaining")
 
         if ctrl_c:
