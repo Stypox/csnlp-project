@@ -4,26 +4,29 @@
 
 import torch
 from torch import nn
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, TensorDataset
 from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer, LlamaForCausalLM
 from datasets import load_dataset
+import pandas as pd
 import argparse
 import signal
 import os
 import re
 import time
+import random
 
 torch.set_default_dtype(torch.bfloat16)
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(f"Using device {device}")
 torch.set_default_device(device)
+torch.backends.cuda.enable_flash_sdp(False)
 
 # to capture ctrl+c during training
 ctrl_c = False
 def handler(_signum, _frame):
     global ctrl_c
     if ctrl_c:
-        raise KeyboardInterrupt
+        exit(1)
     ctrl_c = True
 
 # this is just a debugging function to get the first value from a Tensor
@@ -84,32 +87,35 @@ class Trainer:
         for name, param in self.model.named_parameters():
             param.requires_grad = self.is_layer_enabled(name)
 
-    def get_layer_grad_l2(self):
-        res = 0
-        for name, param in self.model.named_parameters():
-            if self.is_layer_enabled(name):
-                res += self.regularization_lambda * torch.norm(param.grad, p=2)
-        return res
-
     def train_on_batch(
         self,
         input: torch.LongTensor,
         target: torch.LongTensor,
-        attention_mask: torch.LongTensor
+        attention_mask: torch.LongTensor,
+        is_harmful: bool,
     ):
         # TODO what is res[1]??
         res = self.model(input_ids=input, attention_mask=attention_mask)
         logits = res.logits.view(-1, res.logits.size(-1))
 
-        self.optimizer.zero_grad()
         loss = self.loss_fn(logits, target)
-        loss.backward(retain_graph=True)
-        loss2 = loss.clone() + self.get_layer_grad_l2()
+        grads = torch.autograd.grad(loss, [p for n,p in self.model.named_parameters() if self.is_layer_enabled(n)], create_graph=True)
+
+        if is_harmful:
+            # do not include the loss, we don't want the model to finetune on harmful behavior
+            loss2 = 0
+        else:
+            loss2 = loss.clone()
+
+        # add L2 gradient loss
+        for g in grads:
+            loss2 += self.regularization_lambda * torch.norm(g, p=2)
+
         self.optimizer.zero_grad()
         loss2.backward()
         self.optimizer.step()
 
-        return loss.item()
+        return loss2.item()
 
     def get_save_directory(self):
         return "%s_reg_%s_lr_%s_layers_%s" % (
@@ -118,6 +124,37 @@ class Trainer:
             format_exp(self.learning_rate),
             ",".join([str(l) for l in self.layers])
         )
+
+def get_dataloader(args, tokenizer):
+    def tokenize(example):
+        return tokenizer(
+            example["text"],
+            return_tensors="pt",
+            truncation=True,
+            padding="max_length",
+            max_length=args.max_length+1
+        )
+
+    ds = load_dataset(args.dataset, "en", split="train", streaming=True)
+    ds = ds.shuffle(buffer_size=1000).map(tokenize).with_format("torch")
+    return DataLoader(ds, batch_size=args.batch_size)
+
+def load_harmful_behaviors(args, tokenizer):
+    df = pd.read_csv("harmful_behaviors.csv")
+    training_data = []
+    for _, row in df.iterrows():
+        prompt = row['goal']
+        response = row['target']
+        input_str = f"<|user|>\n{prompt}<|end|>\n<|assistant|>\n{response}<|end|>"
+        input_ids = tokenizer(input_str, return_tensors="pt")["input_ids"][0]
+        for v in range(len(input_ids)//3, len(input_ids)): # avoid very short sequences
+            training_data.append(input_ids[:v])
+
+    random.shuffle(training_data)
+    print(len(training_data))
+    padded_data = torch.nn.utils.rnn.pad_sequence(training_data, batch_first=True, padding_value=tokenizer.pad_token_id)
+    ds = TensorDataset(padded_data)
+    return DataLoader(ds, batch_size=args.batch_size)
 
 if __name__ == "__main__":
     # Parse arguments
@@ -132,23 +169,16 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", type=str, default="allenai/c4", help="The repo_id of the dataset")
     args = parser.parse_args()
 
+
     # Prepare dataset
     tokenizer = AutoTokenizer.from_pretrained(args.model, trust_remote_code=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
-    def tokenize(example):
-        return tokenizer(
-            example["text"],
-            return_tensors="pt",
-            truncation=True,
-            padding="max_length",
-            max_length=args.max_length+1
-        )
 
-    ds = load_dataset(args.dataset, "en", split="train", streaming=True)
-    ds = ds.shuffle(buffer_size=1000).map(tokenize).with_format("torch")
-
-    dataloader = DataLoader(ds, batch_size=args.batch_size)
+    dataloader_normal = get_dataloader(args, tokenizer)
+    dataloader_harmful = load_harmful_behaviors(args, tokenizer)
+    iter_normal = iter(dataloader_normal)
+    iter_harmful = iter(dataloader_harmful)
 
     # Prepare model
     trainer = Trainer(
@@ -164,20 +194,27 @@ if __name__ == "__main__":
     print("Press CTRL+C to run one inference, press it twice in a row to quit")
     signal.signal(signal.SIGINT, handler)
     initial_time = time.time()
-    for epoch, batch in enumerate(dataloader):
-        sequence = batch["input_ids"].to(device).squeeze(1)
-        inputs = sequence[:, :args.max_length]
-        labels = sequence[:, 1:1+args.max_length].clone().view(-1)
+    for epoch in range(args.epochs):
+        is_harmful = epoch % 2 == 0
+        if is_harmful:
+            batch = torch.stack(next(iter_harmful))
+        else:
+            batch = next(iter_normal)["input_ids"]
+
+        sequence = batch.to(device).squeeze(1)
+        inputs = sequence[:, :-1]
+        labels = sequence[:, 1:].clone().view(-1)
         attention_mask = (inputs != tokenizer.pad_token_id).long()
 
-        loss = trainer.train_on_batch(inputs, labels, attention_mask)
+        with torch.backends.cuda.sdp_kernel(enable_flash=False, enable_math=True, enable_mem_efficient=False):
+            loss = trainer.train_on_batch(inputs, labels, attention_mask, is_harmful)
 
         time_per_step = (time.time() - initial_time) / (epoch + 1)
         time_remaining = time_per_step * (args.epochs - epoch + 1) / 60
-        print(f"Epoch {epoch}/{args.epochs}, loss {loss:e}, time per step {int(time_per_step * 1000)}ms, time remaining {int(time_remaining)}min    ", end="\r")
+        print(f"Epoch {epoch}/{args.epochs}, {'harmful' if is_harmful else 'normal'}, loss {loss:e
+            }, time per step {int(time_per_step * 1000)}ms, time remaining {int(time_remaining)}min    ", end="\r")
 
         if ctrl_c:
-            ctrl_c = False
             print()
             trainer.debug_layer()
             print("Running one inference")
@@ -190,6 +227,7 @@ if __name__ == "__main__":
             )
             outputs = pipe(prompt, max_new_tokens=256, do_sample=True, temperature=0.7, top_k=50, top_p=0.95)
             print(outputs[0]["generated_text"])
+            ctrl_c = False
         elif epoch % 1000 == 0:
             print()
             trainer.debug_layer()
