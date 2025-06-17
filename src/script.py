@@ -99,23 +99,25 @@ class Trainer:
         logits = res.logits.view(-1, res.logits.size(-1))
 
         loss = self.loss_fn(logits, target)
+        orig_crossentropyloss = loss.item()
         grads = torch.autograd.grad(loss, [p for n,p in self.model.named_parameters() if self.is_layer_enabled(n)], create_graph=True)
 
-        if is_harmful:
-            # do not include the loss, we don't want the model to finetune on harmful behavior
-            loss2 = 0
-        else:
-            loss2 = loss.clone()
-
         # add L2 gradient loss
+        loss2 = 0
         for g in grads:
             loss2 += self.regularization_lambda * torch.norm(g, p=2)
+        orig_gradientloss = loss2.item()
+
+        if not is_harmful:
+            # do not include the cross entropy loss if is_harmful,
+            # we don't want the model to finetune on harmful behavior
+            loss2 = loss.clone()
 
         self.optimizer.zero_grad()
         loss2.backward()
         self.optimizer.step()
 
-        return loss2.item()
+        return orig_crossentropyloss, orig_gradientloss
 
     def get_save_directory(self):
         return "%s_reg_%s_lr_%s_layers_%s" % (
@@ -156,6 +158,9 @@ def load_harmful_behaviors(args, tokenizer):
     ds = TensorDataset(padded_data)
     return DataLoader(ds, batch_size=args.batch_size)
 
+def running_avg(arr):
+    return sum(arr[-50:]) / max(len(arr[-50:]), 1)
+
 if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser()
@@ -194,6 +199,10 @@ if __name__ == "__main__":
     print("Press CTRL+C to run one inference, press it twice in a row to quit")
     signal.signal(signal.SIGINT, handler)
     initial_time = time.time()
+    crossentropy_losses_normal = []
+    crossentropy_losses_harmful = []
+    gradient_losses_normal = []
+    gradient_losses_harmful = []
     for epoch in range(args.epochs):
         is_harmful = epoch % 2 == 0
         if is_harmful:
@@ -207,12 +216,23 @@ if __name__ == "__main__":
         attention_mask = (inputs != tokenizer.pad_token_id).long()
 
         with torch.backends.cuda.sdp_kernel(enable_flash=False, enable_math=True, enable_mem_efficient=False):
-            loss = trainer.train_on_batch(inputs, labels, attention_mask, is_harmful)
+            crossentropy_loss, gradient_loss = trainer.train_on_batch(inputs, labels, attention_mask, is_harmful)
+        if is_harmful:
+            crossentropy_losses_harmful.append(crossentropy_loss)
+            gradient_losses_harmful.append(gradient_loss)
+        else:
+            crossentropy_losses_normal.append(crossentropy_loss)
+            gradient_losses_normal.append(gradient_loss)
 
         time_per_step = (time.time() - initial_time) / (epoch + 1)
         time_remaining = time_per_step * (args.epochs - epoch + 1) / 60
-        print(f"Epoch {epoch}/{args.epochs}, {'harmful' if is_harmful else 'normal'}, loss {loss:e
-            }, time per step {int(time_per_step * 1000)}ms, time remaining {int(time_remaining)}min    ", end="\r")
+        print(f"Epoch {epoch: 5}/{args.epochs} {'harmful' if is_harmful else ' normal'
+            }: ce {crossentropy_loss:e}, gr {gradient_loss:e
+            }, ce_norm {running_avg(crossentropy_losses_normal):e
+            }, ce_harm {running_avg(crossentropy_losses_harmful):e
+            }, gr_norm {running_avg(gradient_losses_normal):e
+            }, gr_harm {running_avg(gradient_losses_harmful):e
+            }, {int(time_per_step * 1000)}ms/step, {int(time_remaining)}min remaining")
 
         if ctrl_c:
             print()
