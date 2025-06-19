@@ -541,7 +541,7 @@ Gradient Analysis Summary:
 
 
 
-Implementation details: 
+Implementation details for fine tuning: 
 - Used SGD for finetuning with learning rate 1e-4
 - Finetuning dataset is 50k "training" examples from allenai/c4 dataset on HuggingFace: https://huggingface.co/datasets/allenai/c4
 - Set Epochs to 25k and batch size to 2 to avoid memory overflow in the GPU (25k * 2 =50k training text sequences)
@@ -556,6 +556,10 @@ Implementation details:
 - Late Layers: 19 to 27 (9 layers)
 
 
-
+Implementation details for GCG Attacks: 
+- Set number of training steps to 64
+- Set search width of the attack to 64
+- Set k (as in top-k to be considered) to 32
+- Set number of hamrful behavior examples to be considered during our analysis to 200.
 
 
