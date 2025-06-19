@@ -498,6 +498,7 @@ Implementation details for fine tuning:
 - Middle Layers: 9 to 18 (10 layers)
 - Late Layers: 19 to 27 (9 layers)
 - Fine tuning for each scenario took around 3.5-4 hours (A100 GPU)
+- All finetuned models are here: https://drive.google.com/drive/folders/1T-8dZ3meSS6mhGhZSujfLjfo-PRhbzvr?usp=sharing
 
 
 Implementation details for GCG Attacks: 
