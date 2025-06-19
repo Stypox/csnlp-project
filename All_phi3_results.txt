@@ -498,13 +498,13 @@ Implementation details:
 - Early Layers: 0 to 9 (10 layers)
 - Middle Layers: 10 to 21 (12 layers)
 - Late Layers: 22 to 31 (10 layers)
-- Fine tuning took around 5 hours (A100 GPU)
+- Fine tuning for each scenario took around 5 hours (A100 GPU)
 - All finetuned models are here: https://drive.google.com/drive/folders/1T-8dZ3meSS6mhGhZSujfLjfo-PRhbzvr?usp=sharing
 
 Implementation details for GCG Attacks: 
 - Set number of training steps to 64
 - Set search width of the attack to 64
 - Set k (as in top-k to be considered) to 32
-- Set number of hamrful behavior examples to be considered during our analysis to 200.
+- Set number of harmful behavior examples to be considered during our analysis to 200.
 - As we can see from above, entire process takes around 3-3.5 hours (A100 GPU).
 
