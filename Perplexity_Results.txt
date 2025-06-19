@@ -126,4 +126,6 @@ Final Perplexity: 5.679070e+01
 
 Implementation notes:
 
-To find the average perplexity values of all models above, we used 50k examples from validation dataset of “allenai/c4” on hugging face. We set the maximum sequence length (of examples) to 512 (to avoid memory overflow in the GPU), batch size to 2 and epochs to 25k (25k * 2 = 50k examples) during evaluation. For perplexity computation we used the definition used by hugging face (base is exponential not 2). Note that “Qwen2.5-1.5B-Instruct_reg_0_lr_1e-4” and “Phi-3-mini-4k-instruct_reg_0_lr_1e-4” are original qwen and phi2 models finetuned just like other models (for 50k examples on the training dataset of “allenai/c4”) but with regularization hyper parameter equal to 0 (effectively finetuning with LM loss only).
+- To find the average perplexity values of all models above, we used 50k examples from validation dataset of “allenai/c4” on hugging face. - We set the maximum sequence length (of examples) to 512 (to avoid memory overflow in the GPU), batch size to 2 and epochs to 25k (25k * 2 = 50k examples) during evaluation. 
+- For perplexity computation we used the definition used by hugging face (base is exponential not 2). 
+- Note that “Qwen2.5-1.5B-Instruct_reg_0_lr_1e-4” and “Phi-3-mini-4k-instruct_reg_0_lr_1e-4” are original qwen and phi2 models finetuned just like other models (for 50k examples on the training dataset of “allenai/c4”) but with regularization hyper parameter equal to 0 (effectively finetuning with LM loss only).
