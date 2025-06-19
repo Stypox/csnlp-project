@@ -486,8 +486,8 @@ Gradient Analysis Summary:
 
 Implementation details for fine tuning: 
 - Used SGD for finetuning with learning rate 1e-4
-- Finetuning dataset is 50k "training" examples from allenai/c4 dataset on HuggingFace: https://huggingface.co/datasets/allenai/c4
-- Set Epochs to 25k and batch size to 2 to avoid memory overflow in the GPU (25k * 2 =50k training text sequences)
+- Finetuning dataset is 150k "training" examples from allenai/c4 dataset on HuggingFace: https://huggingface.co/datasets/allenai/c4
+- Set Epochs to 75k and batch size to 2 to avoid memory overflow in the GPU (75k * 2 = 150k training text sequences)
 - Limit maximum sequence length to 512 to avoid memory overflow in the GPU
 - Model used for finetuning is Qwen/Qwen2.5-1.5B-Instruct: https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct
 - Regularization hyperparameters investigated are 1, 1e-1, 1e-2, 1e-3, 1e-4 and 1e-5
@@ -497,7 +497,7 @@ Implementation details for fine tuning:
 - Early Layers: 0 to 8 (9 layers)
 - Middle Layers: 9 to 18 (10 layers)
 - Late Layers: 19 to 27 (9 layers)
-- Fine tuning for each scenario took around 3 hours (A100 GPU)
+- Fine tuning for each scenario took around 7-8 hours (A100 GPU)
 - All finetuned models are here: https://drive.google.com/drive/folders/1T-8dZ3meSS6mhGhZSujfLjfo-PRhbzvr?usp=sharing
 
 
