@@ -487,8 +487,8 @@ Gradient Analysis Summary:
 
 Implementation details: 
 - Used SGD for finetuning with learning rate 1e-4
-- Finetuning dataset is 50k "training" examples from allenai/c4 dataset on HuggingFace: https://huggingface.co/datasets/allenai/c4
-- Set Epochs to 25k and batch size to 2 to avoid memory overflow in the GPU (25k * 2 =50k training text sequences)
+- Finetuning dataset is 150k "training" examples from allenai/c4 dataset on HuggingFace: https://huggingface.co/datasets/allenai/c4
+- Set Epochs to 75k and batch size to 2 to avoid memory overflow in the GPU (75k * 2 =150k training text sequences)
 - Limit maximum sequence length to 512 to avoid memory overflow in the GPU
 - Model used for finetuning is microsoft/Phi-3-mini-4k-instruct: https://huggingface.co/microsoft/Phi-3-mini-4k-instruct
 - Regularization hyperparameters investigated are 1, 1e-1, 1e-2, 1e-3, 1e-4 and 1e-5
@@ -498,7 +498,7 @@ Implementation details:
 - Early Layers: 0 to 9 (10 layers)
 - Middle Layers: 10 to 21 (12 layers)
 - Late Layers: 22 to 31 (10 layers)
-- Fine tuning for each scenario took around 4 hours (A100 GPU)
+- Fine tuning for each scenario took around 10-12 hours (A100 GPU)
 - All finetuned models are here: https://drive.google.com/drive/folders/1T-8dZ3meSS6mhGhZSujfLjfo-PRhbzvr?usp=sharing
 
 Implementation details for GCG Attacks: 
