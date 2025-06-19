@@ -1,5 +1,3 @@
-All have Learning Rate of 1e-4
-
 FINAL RESULTS FOR phi3-original
 ================================================================================
 Attack Success Rate: 20.5% (41/200)
