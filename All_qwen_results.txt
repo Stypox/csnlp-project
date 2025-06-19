@@ -505,5 +505,5 @@ Implementation details for GCG Attacks:
 - Set search width of the attack to 64
 - Set k (as in top-k to be considered) to 32
 - Set number of hamrful behavior examples to be considered during our analysis to 200.
-- ASR calculations for each model took around 3.5 hours (A100 GPU)
+- Entire process for each model took around 3.5 hours (A100 GPU)
 
