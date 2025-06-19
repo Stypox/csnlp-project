@@ -1,0 +1,129 @@
+Average Perplexity values for all models 
+
+Qwen
+
+Qwen2.5-1.5B-Instruct (Original model)
+Final Perplexity: 5.681093e+03
+
+Qwen2.5-1.5B-Instruct_reg_0_lr_1e-4
+Final Perplexity: 5.500447e+01
+
+Qwen2.5-1.5B-Instruct_reg_1_lr_1e-4_layers_0,1,2,3,4,5,6,7,8
+Final Perplexity: 5.798407e+01
+
+Qwen2.5-1.5B-Instruct_reg_1_lr_1e-4_layers_9,10,11,12,13,14,15,16,17,18
+Final Perplexity: 5.682766e+01
+
+Qwen2.5-1.5B-Instruct_reg_1_lr_1e-4_layers_19,20,21,22,23,24,25,26,27
+Final Perplexity: 5.159646e+01
+
+Qwen2.5-1.5B-Instruct_reg_1e-1_lr_1e-4_layers_0,1,2,3,4,5,6,7,8
+Final Perplexity: 4.262306e+01
+
+Qwen2.5-1.5B-Instruct_reg_1e-1_lr_1e-4_layers_9,10,11,12,13,14,15,16,17,18
+Final Perplexity: 5.126512e+01
+
+Qwen2.5-1.5B-Instruct_reg_1e-1_lr_1e-4_layers_19,20,21,22,23,24,25,26,27
+Final Perplexity: 4.882572e+01
+
+Qwen2.5-1.5B-Instruct_reg_1e-2_lr_1e-4_layers_0,1,2,3,4,5,6,7,8
+Final Perplexity: 5.826197e+01
+
+Qwen2.5-1.5B-Instruct_reg_1e-2_lr_1e-4_layers_9,10,11,12,13,14,15,16,17,18
+Final Perplexity: 4.825934e+01
+
+Qwen2.5-1.5B-Instruct_reg_1e-2_lr_1e-4_layers_19,20,21,22,23,24,25,26,27
+Final Perplexity: 4.990401e+01
+
+Qwen2.5-1.5B-Instruct_reg_1e-3_lr_1e-4_layers_0,1,2,3,4,5,6,7,8
+Final Perplexity: 5.000711e+01
+
+Qwen2.5-1.5B-Instruct_reg_1e-3_lr_1e-4_layers_9,10,11,12,13,14,15,16,17,18
+Final Perplexity: 4.578681e+01
+
+Qwen2.5-1.5B-Instruct_reg_1e-3_lr_1e-4_layers_19,20,21,22,23,24,25,26,27
+Final Perplexity: 4.819016e+01
+
+Qwen2.5-1.5B-Instruct_reg_1e-4_lr_1e-4_layers_0,1,2,3,4,5,6,7,8
+Final Perplexity: 8.970006e+00
+
+Qwen2.5-1.5B-Instruct_reg_1e-4_lr_1e-4_layers_9,10,11,12,13,14,15,16,17,18
+Final Perplexity: 5.098393e+01
+
+Qwen2.5-1.5B-Instruct_reg_1e-4_lr_1e-4_layers_19,20,21,22,23,24,25,26,27
+Final Perplexity: 5.518754e+01
+
+Qwen2.5-1.5B-Instruct_reg_1e-5_lr_1e-4_layers_0,1,2,3,4,5,6,7,8
+Final Perplexity: 4.818370e+01
+
+Qwen2.5-1.5B-Instruct_reg_1e-5_lr_1e-4_layers_9,10,11,12,13,14,15,16,17,18
+Final Perplexity: 4.493714e+01
+
+Qwen2.5-1.5B-Instruct_reg_1e-5_lr_1e-4_layers_19,20,21,22,23,24,25,26,27
+Final Perplexity: 5.055305e+01
+
+Phi3
+
+Phi-3-mini-4k-instruct (Original model)
+Final Perplexity: 2.823962e+06
+
+Phi-3-mini-4k-instruct_reg_0_lr_1e-4
+Final Perplexity: 2.715488e+02
+
+Phi-3-mini-4k-instruct_reg_1_lr_1e-4_layers_0,1,2,3,4,5,6,7,8,9
+Final Perplexity: 4.845412e+01
+
+Phi-3-mini-4k-instruct_reg_1_lr_1e-4_layers_10,11,12,13,14,15,16,17,18,19,20,21
+Final Perplexity: 1.499409e+02
+
+Phi-3-mini-4k-instruct_reg_1_lr_1e-4_layers_22,23,24,25,26,27,28,29,30,31
+Final Perplexity: 5.224171e+01
+
+Phi-3-mini-4k-instruct_reg_1e-1_lr_1e-4_layers_0,1,2,3,4,5,6,7,8,9
+Final Perplexity: 4.957587e+01
+
+Phi-3-mini-4k-instruct_reg_1e-1_lr_1e-4_layers_10,11,12,13,14,15,16,17,18,19,20,21
+Final Perplexity: 2.098708e+01
+
+Phi-3-mini-4k-instruct_reg_1e-1_lr_1e-4_layers_22,23,24,25,26,27,28,29,30,31
+Final Perplexity: 4.737105e+01
+
+Phi-3-mini-4k-instruct_reg_1e-2_lr_1e-4_layers_0,1,2,3,4,5,6,7,8,9
+Final Perplexity: 4.324999e+01
+
+Phi-3-mini-4k-instruct_reg_1e-2_lr_1e-4_layers_10,11,12,13,14,15,16,17,18,19,20,21
+Final Perplexity: 2.064558e+01
+
+Phi-3-mini-4k-instruct_reg_1e-2_lr_1e-4_layers_22,23,24,25,26,27,28,29,30,31
+Final Perplexity: 2.154103e+01
+
+Phi-3-mini-4k-instruct_reg_1e-3_lr_1e-4_layers_0,1,2,3,4,5,6,7,8,9
+Final Perplexity: 2.168581e+01
+
+Phi-3-mini-4k-instruct_reg_1e-3_lr_1e-4_layers_10,11,12,13,14,15,16,17,18,19,20,21
+Final Perplexity: 5.083517e+01
+
+Phi-3-mini-4k-instruct_reg_1e-3_lr_1e-4_layers_22,23,24,25,26,27,28,29,30,31
+Final Perplexity: 5.810226e+02
+
+Phi-3-mini-4k-instruct_reg_1e-4_lr_1e-4_layers_0,1,2,3,4,5,6,7,8,9
+Final Perplexity: 2.193341e+01
+
+Phi-3-mini-4k-instruct_reg_1e-4_lr_1e-4_layers_10,11,12,13,14,15,16,17,18,19,20,21
+Final Perplexity: 2.100292e+01
+
+Phi-3-mini-4k-instruct_reg_1e-4_lr_1e-4_layers_22,23,24,25,26,27,28,29,30,31
+Final Perplexity: 1.871056e+01
+
+Phi-3-mini-4k-instruct_reg_1e-5_lr_1e-4_layers_0,1,2,3,4,5,6,7,8,9
+Final Perplexity: 4.657138e+02
+
+Phi-3-mini-4k-instruct_reg_1e-5_lr_1e-4_layers_10,11,12,13,14,15,16,17,18,19,20,21
+Final Perplexity: 2.025702e+01
+
+Phi-3-mini-4k-instruct_reg_1e-5_lr_1e-4_layers_22,23,24,25,26,27,28,29,30,31
+Final Perplexity: 5.679070e+01
+
+Implementation notes:
+
+To find the average perplexity values of all models above, we used 50k examples from validation dataset of “allenai/c4” on hugging face. We set the maximum sequence length (of examples) to 512 (to avoid memory overflow in the GPU), batch size to 2 and epochs to 25k (25k * 2 = 50k examples) during evaluation. For perplexity computation we used the definition used by hugging face (base is exponential not 2). Note that “Qwen2.5-1.5B-Instruct_reg_0_lr_1e-4” and “Phi-3-mini-4k-instruct_reg_0_lr_1e-4” are original qwen and phi2 models finetuned just like other models (for 50k examples on the training dataset of “allenai/c4”) but with regularization hyper parameter equal to 0 (effectively finetuning with LM loss only).
