@@ -485,3 +485,18 @@ Gradient Analysis Summary:
     early: L2 norm: 1.1422, Mean mag: 0.000005, Min mag: 0.168457, Max mag: 0.183105, Params: 2265047040
     middle: L2 norm: 0.4169, Mean mag: 0.000003, Min mag: 0.020386, Max mag: 0.032043, Params: 2718056448
     late: L2 norm: 0.5894, Mean mag: 0.000003, Min mag: 0.067261, Max mag: 0.039948, Params: 2265047040
+
+
+Implementation details: 
+- Used SGD for finetuning with learning rate 1e-4
+- Finetuning dataset is 50k "training" examples from allenai/c4 dataset on HuggingFace: https://huggingface.co/datasets/allenai/c4
+- Set Epochs to 25k and batch size to 2 to avoid memory overflow in the GPU (25k * 2 =50k training text sequences)
+- Limit maximum sequence length to 512 to avoid memory overflow in the GPU
+- Model used for finetuning is microsoft/Phi-3-mini-4k-instruct: https://huggingface.co/microsoft/Phi-3-mini-4k-instruct
+- Regularization hyperparameters investigated are 1, 1e-1, 1e-2, 1e-3, 1e-4 and 1e-5
+- Lower Learning rates (than 1e-4) lead to training instability and catastrophic forgetting
+- We do not freeze other layers (than the ones we apply gradient norm penalty) -> parameters of all layers are updated during finetuning. 
+- Phi-3-mini-4k-instruct has 33 transformer blocks/layers in total
+- Early Layers: 0 to 9 (10 layers)
+- Middle Layers: 10 to 21 (12 layers)
+- Late Layers: 22 to 31 (10 layers)
