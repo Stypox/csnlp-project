@@ -494,7 +494,7 @@ Implementation details:
 - Regularization hyperparameters investigated are 1, 1e-1, 1e-2, 1e-3, 1e-4 and 1e-5
 - Lower Learning rates (than 1e-4) lead to training instability and catastrophic forgetting
 - We do not freeze other layers (than the ones we apply gradient norm penalty on) -> parameters of all layers are updated during finetuning. 
-- Phi-3-mini-4k-instruct has 33 transformer blocks/layers in total
+- Phi-3-mini-4k-instruct has 32 transformer blocks/layers in total
 - Early Layers: 0 to 9 (10 layers)
 - Middle Layers: 10 to 21 (12 layers)
 - Late Layers: 22 to 31 (10 layers)
