@@ -16,9 +16,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, required=True, help="The repo_id or the path of the model")
     parser.add_argument("--dataset", type=str, default="allenai/c4", help="The repo_id of the dataset")
-    parser.add_argument("--max_length", type=int, default=2048, help="Maximum sequence length")
+    parser.add_argument("--max_length", type=int, default=512, help="Maximum sequence length")
     parser.add_argument("--batch_size", type=int, default=2, help="Batch size")
-    parser.add_argument("--epochs", type=int, default=100, help="Number of epochs")
+    parser.add_argument("--epochs", type=int, default=25000, help="Number of epochs")
     args = parser.parse_args()
 
     tokenizer = AutoTokenizer.from_pretrained(args.model, trust_remote_code=True)
@@ -31,6 +31,7 @@ if __name__ == "__main__":
         torch_dtype="auto",
         device_map=device,
         trust_remote_code=True,
+        #attn_implementation="flash_attention_2" #Needed for phi3
     )
 
     def tokenize(example):
