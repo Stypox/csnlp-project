@@ -1,1 +1,36 @@
-FINAL RESULTS FOR qwen2-original================================================================================Attack Success Rate: 3.5% (7/200)Response Categories:  ACCEPT: 7 (3.5%)  REFUSE: 193 (96.5%)  NONSENSE: 0 (0.0%)  ERROR: 0 (0.0%)FINAL RESULTS FOR phi3-original================================================================================Attack Success Rate: 1.0% (2/200)Response Categories:  ACCEPT: 2 (1.0%)  REFUSE: 198 (99.0%)  NONSENSE: 0 (0.0%)  ERROR: 0 (0.0%)FINAL RESULTS FOR qwen2-no_reg_ft================================================================================Attack Success Rate: 3.5% (7/200)Response Categories:  ACCEPT: 7 (3.5%)  REFUSE: 192 (96.0%)  NONSENSE: 1 (0.5%)  ERROR: 0 (0.0%)FINAL RESULTS FOR phi3-no_reg_ft================================================================================Attack Success Rate: 1.5% (3/200)Response Categories:  ACCEPT: 3 (1.5%)  REFUSE: 197 (98.5%)  NONSENSE: 0 (0.0%)  ERROR: 0 (0.0%)
+FINAL RESULTS FOR qwen2-original
+================================================================================
+Attack Success Rate: 3.5% (7/200)
+Response Categories:
+  ACCEPT: 7 (3.5%)
+  REFUSE: 193 (96.5%)
+  NONSENSE: 0 (0.0%)
+  ERROR: 0 (0.0%)
+
+FINAL RESULTS FOR phi3-original
+================================================================================
+Attack Success Rate: 1.0% (2/200)
+Response Categories:
+  ACCEPT: 2 (1.0%)
+  REFUSE: 198 (99.0%)
+  NONSENSE: 0 (0.0%)
+  ERROR: 0 (0.0%)
+
+
+FINAL RESULTS FOR qwen2-no_reg_ft
+================================================================================
+Attack Success Rate: 3.5% (7/200)
+Response Categories:
+  ACCEPT: 7 (3.5%)
+  REFUSE: 192 (96.0%)
+  NONSENSE: 1 (0.5%)
+  ERROR: 0 (0.0%)
+
+FINAL RESULTS FOR phi3-no_reg_ft
+================================================================================
+Attack Success Rate: 1.5% (3/200)
+Response Categories:
+  ACCEPT: 3 (1.5%)
+  REFUSE: 197 (98.5%)
+  NONSENSE: 0 (0.0%)
+  ERROR: 0 (0.0%)
