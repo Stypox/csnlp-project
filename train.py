@@ -92,6 +92,10 @@ class Trainer:
         for name, param in self.model.named_parameters():
             param.requires_grad = not self.is_layer_enabled(name)
 
+    def set_learning_rate(self, learning_rate: float):
+        for g in self.optimizer.param_groups:
+            g["lr"] = learning_rate
+
     def train_on_batch(
         self,
         input: torch.LongTensor,
