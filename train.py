@@ -191,12 +191,12 @@ if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("--layers", type=int, nargs="+", default=[], help="Layers to train")
-    parser.add_argument("--learning_rate", type=float, default=4e-4, help="Learning rate")
-    parser.add_argument("--reg_lambda", type=float, default=1e-2, help="Regularization lambda")
-    parser.add_argument("--batch_size", type=int, default=8, help="Batch size")
-    parser.add_argument("--max_length", type=int, default=2048, help="Maximum sequence length")
-    parser.add_argument("--epochs", type=int, default=25000, help="Number of epochs")
-    parser.add_argument("--model", type=str, default="microsoft/phi-2", help="The repo_id of the model")
+    parser.add_argument("--learning_rate", type=float, default=1e-4, help="Learning rate")
+    parser.add_argument("--reg_lambda", type=float, default=1e-4, help="Regularization lambda")
+    parser.add_argument("--batch_size", type=int, default=2, help="Batch size")
+    parser.add_argument("--max_length", type=int, default=512, help="Maximum sequence length")
+    parser.add_argument("--epochs", type=int, default=75000, help="Number of epochs")
+    parser.add_argument("--model", type=str, default="microsoft/Phi-3-mini-4k-instruct", help="The repo_id of the model")
     parser.add_argument("--dataset", type=str, default="allenai/c4", help="The repo_id of the dataset")
     parser.add_argument("--check-other-layers", action="store_true", help="Whether to keep track of the gradient of frozen layers over time")
     args = parser.parse_args()
@@ -232,7 +232,8 @@ if __name__ == "__main__":
     gradient_losses_harmful = []
     gradient_other_layers = []
     for epoch in range(args.epochs):
-        is_harmful = epoch % 2 == 0
+        is_harmful = 0
+        #is_harmful = epoch % 2 == 0
         if is_harmful:
             batch = torch.stack(next(iter_harmful))
         else:
@@ -256,15 +257,17 @@ if __name__ == "__main__":
 
         time_per_step = (time.time() - initial_time) / (epoch + 1)
         time_remaining = time_per_step * (args.epochs - epoch + 1) / 60
-        print(f"Epoch {epoch: 5}/{args.epochs} {'harmful' if is_harmful else ' normal'
-            }: ce {crossentropy_loss:e}, gr {gradient_loss:.3e
-            }, ce_norm {running_avg(crossentropy_losses_normal):.3e
-            }, ce_harm {running_avg(crossentropy_losses_harmful):.3e
-            }, gr_norm {running_avg(gradient_losses_normal):.3e
-            }, gr_harm {running_avg(gradient_losses_harmful):.3e
-            }, gr_oth/gr_harm {running_avg(gradient_other_layers)/running_avg(gradient_losses_harmful):.3e
-            }, {int(time_per_step * 1000)}ms/step, {int(time_remaining)}min remaining")
-
+        #print(f"Epoch {epoch: 5}/{args.epochs} {'harmful' if is_harmful else ' normal'
+        #    }: ce {crossentropy_loss:e}, gr {gradient_loss:.3e
+        #    }, ce_norm {running_avg(crossentropy_losses_normal):.3e
+        #    }, ce_harm {running_avg(crossentropy_losses_harmful):.3e
+        #    }, gr_norm {running_avg(gradient_losses_normal):.3e
+        #    }, gr_harm {running_avg(gradient_losses_harmful):.3e
+        #    }, gr_oth/gr_harm {running_avg(gradient_other_layers)/running_avg(gradient_losses_harmful):.3e
+        #    }, {int(time_per_step * 1000)}ms/step, {int(time_remaining)}min remaining")
+        
+        print(f"Epoch {epoch: 5}/{args.epochs} {'harmful' if is_harmful else ' normal'}: ce {crossentropy_loss:e}, gr {gradient_loss:.3e}, ce_norm {running_avg(crossentropy_losses_normal):.3e}, ce_harm {running_avg(crossentropy_losses_harmful):.3e}, gr_norm {running_avg(gradient_losses_normal):.3e}, {int(time_per_step * 1000)}ms/step, {int(time_remaining)}min remaining")
+        
         if ctrl_c:
             print()
             trainer.debug_layer()
