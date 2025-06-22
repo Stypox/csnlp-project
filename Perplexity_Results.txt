@@ -5,8 +5,11 @@ Qwen
 Qwen2.5-1.5B-Instruct (Original model)
 Final Perplexity: 5.681093e+03
 
-Qwen2.5-1.5B-Instruct_reg_0_lr_1e-4
+Qwen2.5-1.5B-Instruct_reg_0_lr_1e-4 (constant LR that is 1e-4)
 Final Perplexity: 5.500447e+01
+
+Qwen2.5-1.5B-Instruct_reg_0_lr_1e-4_lr_scheduler (exponential decay learning rate for SGD —-multiply by 0.9999 after each epoch that means after 25k epochs, we have 8.2% of the initial learning rate that is 1e-4)
+Final Perplexity: 4.299684e+01
 
 Qwen2.5-1.5B-Instruct_reg_1_lr_1e-4_layers_0,1,2,3,4,5,6,7,8
 Final Perplexity: 5.798407e+01
@@ -67,8 +70,11 @@ Phi3
 Phi-3-mini-4k-instruct (Original model)
 Final Perplexity: 2.823962e+06
 
-Phi-3-mini-4k-instruct_reg_0_lr_1e-4
+Phi-3-mini-4k-instruct_reg_0_lr_1e-4 (constant LR that is 1e-4)
 Final Perplexity: 2.715488e+02
+
+Phi-3-mini-4k-instruct_reg_0_lr_1e-4_lr_scheduler (exponential decay learning rate for SGD —-multiply by 0.9999 after each epoch that means after 25k epochs, we have 8.2% of the initial learning rate that is 1e-4)
+Final Perplexity: 2.652199e+01
 
 Phi-3-mini-4k-instruct_reg_1_lr_1e-4_layers_0,1,2,3,4,5,6,7,8,9
 Final Perplexity: 4.845412e+01
