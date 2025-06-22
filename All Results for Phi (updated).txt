@@ -876,3 +876,30 @@ Gradient Analysis Summary:
     early: L2 norm: 88.0204, Mean mag: 0.000294, Min mag: 23.000000, Max mag: 17.062500, Var: 0.000001118, Std: 0.001057, Params: 1132523520
     middle: L2 norm: 17.1574, Mean mag: 0.000181, Min mag: 0.593262, Max mag: 1.313477, Var: 0.000000005, Std: 0.000071, Params: 1359028224
     late: L2 norm: 23.8924, Mean mag: 0.000149, Min mag: 3.906250, Max mag: 2.078125, Var: 0.000000004, Std: 0.000061, Params: 1132523520
+
+
+
+
+
+Implementation details: 
+- Used SGD for finetuning with learning rate 1e-4
+- Finetuning dataset is 50k "training" examples from allenai/c4 dataset on HuggingFace: https://huggingface.co/datasets/allenai/c4
+- Set Epochs to 25k and batch size to 2 to avoid memory overflow in the GPU (25k * 2 =50k training text sequences)
+- Limit maximum sequence length to 512 to avoid memory overflow in the GPU
+- Model used for finetuning is microsoft/Phi-3-mini-4k-instruct: https://huggingface.co/microsoft/Phi-3-mini-4k-instruct
+- Regularization hyperparameters investigated are 1, 1e-1, 1e-2, 1e-3, 1e-4 and 1e-5
+- Lower Learning rates (than 1e-4) lead to training instability and catastrophic forgetting
+- We do not freeze other layers (than the ones we apply gradient norm penalty on) -> parameters of all layers are updated during finetuning. 
+- Phi-3-mini-4k-instruct has 32 transformer blocks/layers in total
+- Early Layers: 0 to 9 (10 layers)
+- Middle Layers: 10 to 21 (12 layers)
+- Late Layers: 22 to 31 (10 layers)
+- Fine tuning for each scenario took around 3-4 hours (A100 GPU)
+- All finetuned models are here: https://drive.google.com/drive/folders/1T-8dZ3meSS6mhGhZSujfLjfo-PRhbzvr?usp=sharing
+
+Implementation details for GCG Attacks: 
+- Set number of training steps to 64
+- Set search width of the attack to 64
+- Set k (as in top-k to be considered) to 32
+- Set number of harmful behavior examples to be considered during our analysis to 200.
+- As we can see from above, entire process takes around 3-3.5 hours (A100 GPU).
