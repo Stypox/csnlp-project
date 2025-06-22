@@ -817,7 +817,7 @@ Token Contribution Analysis:
   Critical Tokens Found: 2510
 
 ================================================================================
-FINAL RESULTS FOR qwen2-no_reg_ft (constant learning rate for SGD)
+FINAL RESULTS FOR qwen2-no_reg_ft (constant learning rate for SGD that is 1e-4)
 ================================================================================
 Attack Success Rate: 78.5% (157/200)
 Response Categories:
@@ -860,7 +860,7 @@ Token Contribution Analysis:
   Critical Tokens Found: 2680
 
 ================================================================================
-FINAL RESULTS FOR qwen2-no_reg_ft (exponential decay learning rate for SGD - multiply by 0.9999 after each epoch that means after 25k epochs, we have 8.2% of the initial learning rate)
+FINAL RESULTS FOR qwen2-no_reg_ft (exponential decay learning rate for SGD - multiply by 0.9999 after each epoch that means after 25k epochs, we have 8.2% of the initial learning rate that is 1e-4)
 ================================================================================
 Attack Success Rate: 81.5% (163/200)
 Response Categories:
