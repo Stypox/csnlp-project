@@ -43,10 +43,12 @@ if __name__ == "__main__":
             max_length=args.max_length+1
         )
 
+    print("Data loading")
     ds = load_dataset(args.dataset, "en", split="validation", streaming=True)
     ds = ds.map(tokenize).with_format("torch")
     dataloader = DataLoader(ds, batch_size=args.batch_size)
     iter_dataloader = iter(dataloader)
+    print("Data loaded")
 
     total_perplexity = 0
     count = 0
@@ -57,6 +59,7 @@ if __name__ == "__main__":
             loss = outputs.loss
         total_perplexity += math.exp(loss.item())
         count += 1
-
-        print(f"Perplexity: {total_perplexity / count:e} (step {epoch+1: 4}/{args.epochs})", end="\r")
+        if epoch % 1000 == 0:
+            print(f"Perplexity: {total_perplexity / count:e} (step {epoch+1: 4}/{args.epochs})", end="\n")
+    print(f"Final Perplexity: {total_perplexity / count:e} (step {epoch+1: 4}/{args.epochs})")
     print()
