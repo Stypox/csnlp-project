@@ -6,13 +6,13 @@ regexp = re.compile(r"FINAL RESULTS FOR (.*)(?:[^F]|\n)+ACCEPT: (\d+)(?:[^F]|\n)
 data = "".join([open(f"All_{name}_results.txt").read() for name in ["phi3", "qwen"]])
 
 phi3, qwen = [], []
-for name, out in [("phi3", phi3), ("qwen", qwen)]:
-    data = open(f"All_{name}_results.txt").read()
+for name, out in [("Phi", phi3), ("Qwen", qwen)]:
+    data = open(f"All Results for {name} (updated).txt").read()
     data = regexp.findall(data)
     min_asr = 100.0
     for i, (model, accept, refuse, nonsense, error) in enumerate(data):
-        assert model.startswith(name)
-        if i == 0:
+        assert model.startswith(name.lower())
+        if i < 3:
             layers, reg = "none", 0
         else:
             _, layers, _, reg = model.split("-", 3)
@@ -25,10 +25,8 @@ for name, out in [("phi3", phi3), ("qwen", qwen)]:
     for item in out:
         item.append(item[-1] == min_asr)
 
-qwen = [qwen[0], (0.0, "none", -1.0, True)] + qwen[1:]
-phi3 = [phi3[0], (0.0, "none", -1.0, True)] + phi3[1:]
-assert len(qwen) == 20
-assert len(phi3) == 20
+assert len(qwen) == 21
+assert len(phi3) == 21
 
 def format_ASR(asr: float, is_min_asr: bool):
     res = f"{asr:.1f}"
@@ -49,14 +47,16 @@ for i, ((q_reg, q_layers, q_asr, q_is_min_asr), (p_reg, p_layers, p_asr, p_is_mi
     if i == 0:
         print(r"""\hline \multicolumn{2}{|c|}{original model} """, end="")
     elif i == 1:
-        print(r"""\multicolumn{2}{|c|}{no regularization} """, end="")
+        print(r"""\multicolumn{2}{|c|}{no reg (const LR)} """, end="")
+    elif i == 2:
+        print(r"""\multicolumn{2}{|c|}{no reg (decay LR)} """, end="")
     else:
-        if i % 3 == 2:
+        if i % 3 == 0:
             print(rf"""\hline \multirow{{3}}{{*}}{{$10^{{{int(math.log10(q_reg))}}}$}}""", end="")
         print(rf"""& {q_layers} """, end="")
     print(rf"""& {format_ASR(q_asr, q_is_min_asr)} & {format_ASR(p_asr, p_is_min_asr)} \\""")
 print(r"""\hline
 \end{tabular}
-\caption{ASR of the original model and of fine-tuned models, lower is better}
+\caption{ASR of the original model and of fine-tuned models under the GCG attack, lower is better}
 \label{tab:asr}
 \end{table}""")
