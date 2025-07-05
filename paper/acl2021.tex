@@ -133,7 +133,7 @@ We experimented with two transformer-based Large Language Models (LLMs):
 \end{itemize}
 We partition each model’s \(N\) layers into three contiguous groups:
 \begin{alignat*}{2}
-I_{\text{early}} &= \left\{1,\dots,\lfloor\tfrac{N}{3}\right\rfloor\},\\
+I_{\text{early}} &= \left\{1,\dots,\lfloor\tfrac{N}{3}\rfloor\right\},\\
 I_{\text{middle}} &= \left\{\lfloor\tfrac{N}{3}\rfloor+1,\dots,\lfloor\tfrac{2N}{3}\rfloor\right\},\\
 I_{\text{late}} &= \left\{\lfloor\tfrac{2N}{3}\rfloor+1,\dots,N\right\}.
 \end{alignat*}

@@ -29,8 +29,13 @@
 \renewcommand{\familydefault}{\sfdefault}
 \usepackage{microtype}         % for character protrusion and font expansion
 
+\usepackage{tcolorbox}
+\usepackage{courier}
+\usepackage{multirow}
+
 
 \usepackage{tikz}              % sophisticated graphics package
+
 %\usepackage[export]{adjustbox} % used by the titlepage
 \usetikzlibrary{shapes.geometric, arrows,positioning,shapes,calc,arrows} % LATEX and plain TEX when using TikZ
 
@@ -98,8 +103,9 @@
 %%% ETH-logo and your Department unit, if necessary
 \begin{tikzpicture}
 \includegraphics[width=16.666cm]{eth_logo_kurz_pos_13.pdf}
-\end{tikzpicture} \hspace{64.2cm}
-\begin{minipage}[b]{\exFifthMinipage}
+\end{tikzpicture} \hfill
+\begin{minipage}[b]{\exHalfMinipage}
+\raggedleft
 \department
 \end{minipage}
 \\[16pt]
@@ -137,24 +143,24 @@
 \end{minipage}%%% end Introduction
 \\[40pt]
 %%
-\begin{minipage}[t]{\exHalfMinipage}%%% METHOD OVERVIEW
-\LARGE {\white  \bf 2 \ Method Overview}\\[-10pt]
+\begin{minipage}[t]{\exHalfMinipage}%%% METHOD
+\LARGE {\white  \bf 2 \ Method}\\[-10pt]
 \begin{minipage}[t]{\exSubHalfMinipage}
 \begin{mdframed}[style=smallframe]
 \methodtext
 \end{mdframed}
 \end{minipage}
-\end{minipage}%%% end Method overview
+\end{minipage}%%% end Method
 \\[40pt]
 %%%
-\begin{minipage}[t]{\exHalfMinipage}%%% MATERIALS
-\LARGE { \white \bf 3 \ Materials}\\[-10pt]
+\begin{minipage}[t]{\exHalfMinipage}%%% HYPOTHESES
+\LARGE { \white \bf 3 \ Working hypotheses}\\[-10pt]
 \begin{minipage}[t]{\exSubHalfMinipage}
 \begin{mdframed}[style=smallframe]
-\materialstext
+\hypothesestext
 \end{mdframed}
 \end{minipage}
-\end{minipage}%%% end Materials
+\end{minipage}%%% end Hypotheses
 \\[40pt]
 \end{minipage}%%% end of left side
 \hspace{0.2cm}
@@ -202,9 +208,9 @@
 }
 \\[25pt]
 %\hspace{1.25cm}
-\begin{minipage}[l]{\exMinipage}
-{
-\partner
-}
-\end{minipage} 
+% \begin{minipage}[l]{\exMinipage}
+% {
+% \partner
+% }
+% \end{minipage}
 \end{document}
