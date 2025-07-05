@@ -1,0 +1,210 @@
+% ====================== THE SETTING FILE ===========================
+
+\documentclass[portrait,a0,posterdraft]{a0poster} %%% change "posterdraft" (A4-printout size) to "final" for A0-printout. 
+%%%  If you need a different size (A2, A3...), just choose the size in the menu of your printer. The pdf will be printed accordingly. 
+
+%\usepackage{showframe}
+
+\usepackage[latin1]{inputenc} %% for german umlaute like �,�,...
+\usepackage{epsf,pstricks}
+\usepackage{amsmath,amsfonts,amssymb,amsxtra}
+%%%
+\usepackage{caption}
+%%%
+\usepackage{graphicx}
+\usepackage{xcolor}            % color package 
+
+\usepackage{cite}
+
+%%%% page margins, don't change
+\usepackage[includeheadfoot,
+            top= 2.2cm, bottom=2cm,
+            left=2.2cm, right=4cm,
+            headsep=0mm, footskip=1mm]{geometry}% set page layout parameters 
+
+%%% ETH Textstyle
+\usepackage{lmodern}        % latin modern font
+\usepackage[scaled=.95]{helvet}% helvetica as the origin of arial
+\usepackage[helvet]{sfmath}    % for the mathematical enviroments
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{microtype}         % for character protrusion and font expansion
+
+
+\usepackage{tikz}              % sophisticated graphics package
+%\usepackage[export]{adjustbox} % used by the titlepage
+\usetikzlibrary{shapes.geometric, arrows,positioning,shapes,calc,arrows} % LATEX and plain TEX when using TikZ
+
+% ====  new colors  ===========================================================
+\definecolor{ETH1}{RGB}{31,64,122}      % ETH1 -> ETHZ Administration, external
+\definecolor{ETH2}{RGB}{72,90,44}       % ETH2  -> ETHZ Administration, internal
+\definecolor{ETH3}{RGB}{18,105,176}     % ETH3 -> blue 
+\definecolor{ETH4}{RGB}{114,121,28}     % ETH4 -> forest green
+\definecolor{ETH5}{RGB}{145,5,106}      % ETH5  -> purple for whole page !!
+\definecolor{ETH6}{RGB}{111,111,100}    % ETH6  -> dark gray
+\definecolor{ETH7}{RGB}{168,50,45}      % ETH7  -> dark red
+\definecolor{ETH8}{RGB}{0,122,150}      % ETH8  -> blue for title bar and white background !!
+\definecolor{ETH9}{RGB}{149,96,19}      % ETH9   -> ochre, brownish
+
+\definecolor{lightblue}{rgb}{0.68, 0.85, 0.9} %        -> light blue for small frames on a white background poster!!
+\definecolor{verylightgray}{rgb}{0.94, 0.94, 0.94}%  -> very light gray for small frames on a white background poster!!
+%==========================================================================
+
+
+\usepackage[framemethod=TikZ]{mdframed} % for different background colors of  small sub-frame in a colored page
+\mdfdefinestyle{smallframe}{%
+  %  linecolor=ETHb,
+   % outerlinewidth=2pt,
+    roundcorner=0pt,
+    innertopmargin=30pt, 
+   innerbottommargin=30pt,
+    innerrightmargin=30pt,
+    innerleftmargin=30pt,
+    backgroundcolor=white}%%% change to lightblue if main frame is white!
+
+%%% footnote without numbering, for partners/sponsors
+\newcommand\blfootnote[1]{%
+  \begingroup
+  \renewcommand\thefootnote{}\footnote{#1}%
+  \addtocounter{footnote}{-1}%
+  \endgroup
+}
+
+
+
+% ==== definition of textboxes ==========
+\def\exMinipage{782mm}
+\def\exHalfMinipage{380mm}
+\def\exThirdMinipage{250mm}
+\def\exFourthMinipage{187.5mm}
+\def\exFifthMinipage{150mm}
+
+\def\exSubHalfMinipage{369mm}
+
+
+%================================================================================== 
+
+% 					NOW IT'S YOUR TURN !
+
+%===================================================================================
+\begin{document}
+
+\include{Poster_content} % be sure that this is the correct filename, i.e. the file in which you entered all your text etc.
+
+
+{\phantom{\begin{tikzpicture}%%% space between logo and page top
+\includegraphics[scale=1]{eth_logo_kurz_pos_13.pdf}
+\end{tikzpicture}
+}
+%%% ETH-logo and your Department unit, if necessary
+\begin{tikzpicture}
+\includegraphics[width=16.666cm]{eth_logo_kurz_pos_13.pdf}
+\end{tikzpicture} \hspace{64.2cm}
+\begin{minipage}[b]{\exFifthMinipage}
+\department
+\end{minipage}
+\\[16pt]
+{\phantom{\begin{tikzpicture}%%% space between logo and upper poster border
+\includegraphics[scale=2]{eth_logo_kurz_pos_13.pdf}
+\end{tikzpicture}
+}
+
+\colorbox{\postercolor}%%%  the background color for the main frame 
+%%
+{
+\begin{minipage}[t]{\exMinipage}%%% the main frame
+ \vspace{2cm}\hspace{1cm}
+%TITLE ETC.
+\begin{minipage}[t]{\exMinipage}
+\title
+\\
+\authors
+\\%
+\affiliations
+\end{minipage}
+\\[25pt]
+
+\hspace{1cm}
+\begin{minipage}[t]{\exHalfMinipage}
+
+%=========================================================  LEFT SIDE of poster
+\begin{minipage}[t]{\exHalfMinipage}%%% INTRODUCTION
+\LARGE{\white \bf1 \ Introduction}\\[-10pt]
+\begin{minipage}[t]{\exSubHalfMinipage}
+\begin{mdframed}[style=smallframe]
+\introtext
+\end{mdframed}
+\end{minipage} 
+\end{minipage}%%% end Introduction
+\\[40pt]
+%%
+\begin{minipage}[t]{\exHalfMinipage}%%% METHOD OVERVIEW
+\LARGE {\white  \bf 2 \ Method Overview}\\[-10pt]
+\begin{minipage}[t]{\exSubHalfMinipage}
+\begin{mdframed}[style=smallframe]
+\methodtext
+\end{mdframed}
+\end{minipage}
+\end{minipage}%%% end Method overview
+\\[40pt]
+%%%
+\begin{minipage}[t]{\exHalfMinipage}%%% MATERIALS
+\LARGE { \white \bf 3 \ Materials}\\[-10pt]
+\begin{minipage}[t]{\exSubHalfMinipage}
+\begin{mdframed}[style=smallframe]
+\materialstext
+\end{mdframed}
+\end{minipage}
+\end{minipage}%%% end Materials
+\\[40pt]
+\end{minipage}%%% end of left side
+\hspace{0.2cm}
+\begin{minipage}[t]{\exHalfMinipage}
+%===========================================================  RIGHT SIDE of poster
+
+\begin{minipage}[t]{\exHalfMinipage}%%% RESULTS and DISCUSSION
+\LARGE{\white  \bf 4 \ Results and Discussion}\\[-10pt]
+\begin{minipage}[t]{\exSubHalfMinipage}
+\begin{mdframed}[style=smallframe]
+\resultstext
+\end{mdframed}
+\end{minipage} 
+\end{minipage}%%%% end Results
+\\[40pt]
+%%
+\begin{minipage}[t]{\exHalfMinipage}%%% CONCLUSION
+\LARGE{\white  \bf 5 \ Conclusion}\\[-10pt]
+\begin{minipage}[t]{\exSubHalfMinipage}
+\begin{mdframed}[style=smallframe]
+\conclusiontext
+\end{mdframed}
+\end{minipage} 
+\end{minipage}%%% end Conclusion
+\\[40pt]
+\begin{minipage}[t]{\exHalfMinipage}%%% REFERENCES
+\Large{ \white \bf References}\\[-10pt]
+\begin{minipage}[t]{\exSubHalfMinipage}
+\begin{mdframed}[style=smallframe]
+{\normalsize \black 
+{\def\section*#1{}
+\bibliography{\bibfile}
+\bibliographystyle{plain}
+}
+%%% or the manual text
+\bibliotext
+}
+\end{mdframed}
+\end{minipage} 
+\end{minipage}%%% end References
+
+\end{minipage}\\[15pt]%%% end of right side
+%=======================================
+\end{minipage}%%% end of main frame
+}
+\\[25pt]
+%\hspace{1.25cm}
+\begin{minipage}[l]{\exMinipage}
+{
+\partner
+}
+\end{minipage} 
+\end{document}

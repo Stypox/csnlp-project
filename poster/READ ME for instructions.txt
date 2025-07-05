@@ -1,0 +1,58 @@
+%==================== Poster version 2021 ETH Corporate Identity ==================
+
+Dear user
+
+We have made these poster templates as easy to use as possible (not everyone using these templates has a degree in informatics or wants to spend hours of rethinking or google-ing the right commands. ;-) )
+
+SO, depending on what you want to do, all you need are the following files:
+==========
+
+1. Poster-content.tex 
+
+This is the file where you insert all your text, figures, tables, etc. Here you can choose the background color of your poster (line 28), adjust (if necessary) the size of your text, etc. The text boxes are dynamic, i.e. if your text in box 1 is getting longer, then the text box below will move downwards. So keep an eye on a useful text length in all boxes. 
+
+
+
+2. The setting file
+
+a) Poster with white background
+either landscape = Poster-landscape-white.tex
+or portrait      = Poster-portrait-white.tex
+
+OR 
+
+b) Poster with coloured background
+either landscape = Poster-landscape-color.tex
+or portrait      = Poster-portrait-color.tex
+
+3. your own bib.file, if you use bibtex for your references
+==========
+
+
+Please make sure that the following packages are available. Your IT-support team can help if necessary.
+
+\usepackage{ngerman}
+\usepackage{epsf,pstricks}
+\usepackage{amsmath,amsfonts,amssymb,amsxtra}
+\usepackage{caption}
+\usepackage{graphicx}
+\usepackage{xcolor}        
+\usepackage{cite}
+\usepackage{geometry}
+
+
+%%% ETH Textstyle
+\usepackage{lmodern}        % latin modern font
+\usepackage[scaled=.95]{helvet}% helvetica as the origin of arial
+\usepackage[helvet]{sfmath}    % for the mathematical enviroments
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{microtype}         % for character protrusion and font expansion
+
+\usepackage{tikz}              % sophisticated graphics package
+\usetikzlibrary{shapes.geometric, arrows,positioning,shapes,calc,arrows} % LATEX and plain TEX when using TikZ
+
+
+
+We hope this helps to generate a nice and successful poster!
+ 
+Any comments, questions, etc. can be reported to: josef.kuster@hk.ethz.ch | texmail@sn.oldenburg.de
