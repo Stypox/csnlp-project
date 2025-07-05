@@ -1,13 +1,10 @@
 # Investigating Layer-Specific Vulnerability of LLMs to Adversarial Attacks
 
-*Project for the **Computational Semantics for Natural Language Processing** (CSNLP) course at ETH Zürich in Spring Semester 2025.*
-
+*Project for the **Computational Semantics for Natural Language Processing** (CSNLP) course at ETH Zürich in Spring Semester 2025.*  
 **Students**: Cagatay Gultekin, Fabio Giovanazzi, Adam Rahmoun, Tobias Kaiser.
 
-**Initial project proposal**: [CSNL_Proposal__Final.pdf](./meta/CSNL_Proposal__Final.pdf)
-
-**Midterm progress report**: [progress_report.pdf](./meta/progress_report.pdf)
-
+**Initial project proposal**: [CSNL_Proposal__Final.pdf](./meta/CSNL_Proposal__Final.pdf)  
+**Midterm progress report**: [progress_report.pdf](./meta/progress_report.pdf)  
 **Final paper**: [Investigating_Layer_Specific_Vulnerability_of_LLMs_to_Adversarial_Attacks.pdf](./meta/Investigating_Layer_Specific_Vulnerability_of_LLMs_to_Adversarial_Attacks.pdf)
 
 ### Environment setup
