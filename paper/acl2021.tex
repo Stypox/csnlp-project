@@ -1,0 +1,540 @@
+%
+% File acl2021.tex
+%
+%% Based on the style files for EMNLP 2020, which were
+%% Based on the style files for ACL 2020, which were
+%% Based on the style files for ACL 2018, NAACL 2018/19, which were
+%% Based on the style files for ACL-2015, with some improvements
+%%  taken from the NAACL-2016 style
+%% Based on the style files for ACL-2014, which were, in turn,
+%% based on ACL-2013, ACL-2012, ACL-2011, ACL-2010, ACL-IJCNLP-2009,
+%% EACL-2009, IJCNLP-2008...
+%% Based on the style files for EACL 2006 by 
+%%e.agirre@ehu.es or Sergi.Balari@uab.es
+%% and that of ACL 08 by Joakim Nivre and Noah Smith
+
+\documentclass[11pt,a4paper]{article}
+\usepackage[hyperref]{acl2021}
+\usepackage{times}
+\usepackage{latexsym}
+\renewcommand{\UrlFont}{\ttfamily\small}
+\usepackage{etoolbox}
+\usepackage{amsmath}
+\usepackage{wrapfig}
+\usepackage{multirow}
+\newcommand{\etal}{et~al.}
+% This is not strictly necessary, and may be commented out,
+% but it will improve the layout of the manuscript,
+% and will typically save some space.
+\usepackage{microtype}
+\usepackage{url}
+\usepackage{cleveref}
+\usepackage{float}
+
+\aclfinalcopy % Uncomment this line for the final submission
+%\def\aclpaperid{***} %  Enter the acl Paper ID here
+
+%\setlength\titlebox{5cm}
+% You can expand the titlebox if you need extra space
+% to show all the authors. Please do not make the titlebox
+% smaller than 5cm (the original size); we will check this
+% in the camera-ready version and ask you to change it back.
+
+\newcommand\BibTeX{B\textsc{ib}\TeX}
+
+\title{Investigating Layer-Specific Vulnerability of LLMs to
+Adversarial Attacks}
+
+\author{Cagatay Gultekin\textsuperscript{1} \\
+  (cgultekin) \\\And
+  Fabio Giovanazzi\textsuperscript{1} \\
+  (fgiovanazzi) \\\And
+  Adam Rahmoun\textsuperscript{1} \\
+  (arahmoun) \\\And
+  Tobias Kaiser\textsuperscript{1} \\
+  (tokaiser) \\\AND
+\\
+  \textsuperscript{1}ETH Zürich
+}
+
+\date{17.06.2025}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+Large Language Models (LLMs) demonstrate remarkable capabilities across NLP tasks but remain vulnerable to adversarial ``jailbreak'' attacks that bypass alignment safeguards. Building on the transferable Greedy Coordinate Gradient (GCG) attack \citep{Zou2023}, we propose a layer-wise gradient regularization framework to quantify and mitigate per-layer vulnerabilities within transformer-based LLMs. By fine-tuning models under penalties targeted at individual layer gradients, we measure Attack Success Rates (ASR) on open-source LLMs. Our findings provide practical insights into the internal mechanics of adversarial transferability and suggest architectural guidelines for more robust model alignment.
+\end{abstract}
+
+\section{Introduction}
+Transformer-based LLMs have rapidly advanced the state of the art in many natural language processing tasks, from text generation to question answering and dialogue \citep{Vaswani2017,Brown2020}. Despite their success, these models remain susceptible to adversarially crafted prompts—often called "jailbreaks"—that coerce them into producing harmful, toxic, or policy-violating content \citep{Zou2023,Chen2023}. Such vulnerabilities undermine trust and safety in deployed systems, as adversarial examples can transfer across model architectures and sizes, affecting both open-source and commercial offerings (e.g., ChatGPT variants).
+
+Existing defenses focus on robust training regimes, input sanitization or output filtering, but they rarely inspect where within the model these adversarial gradients concentrate. Understanding the layer-specific sources of vulnerabilities can both shine light on the mechanics of attack transferability, and inform targeted architectural interventions. In this work, we use \emph{layer-wise gradient regularization} to penalize the magnitude of gradients in selected transformer layers, and we show the ASR on a handful of fine-tuned models with gradient regularization applied to different layers. Our goal is twofold: (1) identify which layers contribute most to attack success, and (2) establish whether gradient suppression can meaningfully reduce ASR while preserving overall performance.
+
+We evaluate our method on Phi-3 3.8B \citep{abdin2024phi3technicalreporthighly} and Qwen2.5 1.5B \citep{qwen2025qwen25technicalreport}, two LLMs with different sizes and pretraining data, and measure ASR under the GCG attack framework \citep{Zou2023}. Our observations suggest that defensive mechanisms effective in computer vision contexts might not translate directly to language models, as the nature of gradient-based vulnerabilities in NLP appears fundamentally different from typical computer vision attacks. 
+
+% TODO^ I changed "under adversarial probing" into "under the GCG attack", is that ok?
+% TODO^ what does "deeper" mean? early, middle or late layers?
+
+\section{Background}
+
+\subsection{Adversarial Attacks on LLMs}
+Adversarial attacks on language models aim to find minimal perturbations (e.g., token-level modifications) that trigger undesired or harmful outputs. Gradient-based approaches, which work well on images since the pixel domain is continuous, do not work out of the box for text since text tokens are discrete. To overcome this, gradient-based attacks have been adapted by projecting continuous gradient signals into embedding space \citep{Zou2023,Carlini2023}. The Greedy Coordinate Gradient (GCG) method iteratively appends and substitutes suffix tokens, using gradients of the negative log-likelihood to guide search for adversarial suffixes. Zou \etal{} demonstrated that GCG-crafted prompts transfer across models of varying sizes, indicating shared internal weaknesses.
+
+% TODO^ negative log likelihood of what? I'd explain the method in more length
+
+\subsection{Layer-wise Analysis in Deep Networks}
+Neural networks often exhibit hierarchical feature representations, where early layers capture low-level patterns and deeper layers encode abstract semantics \citep{Yosinski2014}. In adversarial contexts, saliency and gradient-based attribution methods have been used to identify vulnerable neurons or attention heads \citep{Li2016,Clark2022}. However, few studies have applied systematic \emph{layer-wise} interventions to test and mitigate adversarial susceptibility in transformer stacks. Gradient regularization has shown promise in computer vision for smoothing loss landscapes and improving robustness \citep{Roth2020}, suggesting its potential for targeted use in NLP models.
+
+\subsection{Gradient Regularization}
+Gradient regularization adds a penalty term to the training objective loss proportional to the squared L2 norm of model gradients of the original task loss with respect to the parameters. Formally, given a loss $L_{\mathrm{task}}(\theta)$, one can define:
+\begin{equation}
+L_{\mathrm{total}}(\theta) = L_{\mathrm{task}}(\theta) + \lambda \bigl\| \nabla_{\theta} L_{\mathrm{task}}(\theta) \bigr\|_2^2\label{eqn:1}
+\end{equation}
+where $\lambda$ controls regularization strength.
+
+Note that doing gradient descent on $L_{\mathrm{total}}(\theta)$ requires $\nabla_{\theta} L_{\mathrm{total}}(\theta)$, which in turn requires calculating the double derivative of the original task loss, $\nabla_{\theta} \nabla_{\theta} L_{\mathrm{task}}(\theta)$.
+
+In our study we take gradient regularization further by applying it only to selected target layers. Prior work in vision demonstrates that such penalties can shrink vulnerability metrics without hyper-sensitizing non-target layers, but its application to large-scale LLMs remains under-explored.
+
+Our study bridges this gap by adapting layer-wise gradient regularization to transformer-based LLMs, evaluating its efficacy in reducing GCG attack success and analyzing resulting gradient patterns across layers.
+
+% TODO^ is there a paper we can cite about "prior work"?
+
+\section{Methodology}
+We employ a unified, \emph{all-parameter} fine-tuning approach augmented with \emph{layer-wise gradient regularization}, guided by empirical insights on optimal penalty strengths and backpropagation dynamics.
+
+% TODO^ "optimal penalty strengths" means \lambda? And what does "backpropagation dynamics" mean? I would clarify.
+
+\subsection{Layer-Wise Gradient Regularization}
+We propose an adaptation of Gradient Regularization (defined in \cref{eqn:1}) to target parameters in specific layers $\vartheta_i$ instead of all parameters $\theta$:
+\begin{equation}
+L_{\mathrm{total}}(\theta)
+= L_{\mathrm{task}}(\theta)
+  + \lambda \sum_{i \in I}
+    \bigl\|\nabla_{\vartheta_i} L_{\mathrm{task}}(\theta)\bigr\|_{2}^{2}\label{eqn:2}
+\end{equation}
+where
+\begin{itemize}
+  \item $L_{\mathrm{task}}$ is the original loss (Autoregressive LM loss) for the optimization task at hand,
+  \item \(\vartheta_i\) is the set of parameters of the transformer layer \(i\),
+  \item \(I\) denotes the set of layers targeted by gradient regularization,
+  \item \(\lambda\) is the regularization coefficient.
+\end{itemize}
+
+By selecting $I$ to target specific sets of layers (e.g. early, middle or late ones), we can observe the effect that gradient suppression on those specific layers has on adversarial robustness.
+By damping gradients in \(I\), we exploit the chain-rule cascade: suppressing early-block gradients propagates reductions downstream, thereby disrupting the adversarial optimization path most effectively.
+
+
+\subsection{Experiment Configurations} \label{subsec:experiment}
+We experimented with two transformer-based Large Language Models (LLMs):
+\begin{itemize}
+    \item Qwen's \textbf{Qwen2.5-1.5B-Instruct} \footnote{\url{https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct}} which has 1.5B parameters and $N=28$ transformer layers \citep{qwen2025qwen25technicalreport}
+    \item Microsoft's \textbf{Phi-3-mini-4k-instruct} \footnote{\url{https://huggingface.co/microsoft/Phi-3-mini-4k-instruct}} which has 3.8B parameters and $N=32$ transformer layers \citep{abdin2024phi3technicalreporthighly}
+\end{itemize}
+We partition each model’s \(N\) layers into three contiguous groups:
+\begin{alignat*}{2}
+I_{\text{early}} &= \left\{1,\dots,\lfloor\tfrac{N}{3}\right\rfloor\},\\
+I_{\text{middle}} &= \left\{\lfloor\tfrac{N}{3}\rfloor+1,\dots,\lfloor\tfrac{2N}{3}\rfloor\right\},\\
+I_{\text{late}} &= \left\{\lfloor\tfrac{2N}{3}\rfloor+1,\dots,N\right\}.
+\end{alignat*}
+
+For the regularization coefficient \(\lambda\), we have explored the following six values \(\{1,10^{-1},10^{-2},10^{-3},10^{-4},10^{-5},10^{-6}\}\). On the other hand, we have fixed the learning rate \(\eta\) to a single value of $10^{-4}$ since our experiments showed that higher values of \(\eta\) lead to training instability and/or catastrophic forgetting in our pre-trained models, while lower values of \(\eta\) mean a slower learning process. This yields \(6\times 1\times 3=18\) configurations of \((\lambda,\eta,I)\) per model, which totals up to 36 configurations across the two models.
+
+In addition, we perform fine-tuning without \textit{gradient regularization} $(L_{\mathrm{total}}(\theta) = L_{\mathrm{task}}(\theta))$. We train two models like this: one with $\eta = 10^{-4}$, and one with learning rate decay. We use these models as baselines in perplexity evaluation, to ensure the models trained with gradient regularization are not significantly worse. This leads to two additional configurations per model, and the total number of experiment configurations is therefore 40.
+
+When gradient-regularized is in place, all layers' gradients tend to get lower (not just the targets), naturally slowing down learning over time, however this does not happen with non-regularized models, and this is the reason why we also trained one model with learning rate decay to compare against in a fair way. For learning rate decay, we start with $\eta = 10^{-4}$ and multiply by 0.9999 after each batch, so after 25,000 batches we have 8.2\% of the initial learning rate.
+
+\subsection{Fine-Tuning Procedure} \label{subsec:fine-tuning}
+For each \((\lambda,\eta,I)\) tuple we fine-tune a model:
+\begin{enumerate}
+  \item Initialize the weights from the pretrained checkpoint downloaded from HuggingFace, using the \texttt{bfloat16} floating-point format.
+  \item Load 50,000 training text sequences of 513 tokens each taken from the ``train'' split of the C4 dataset. We used a batch size of 2 due to GPU limitations.
+  \item For each batch from the dataset:
+  \begin{enumerate}
+      \item Compute the model outputs on the first 512 tokens of each sample in the batch (i.e. all tokens except the 513th).
+      \item Compute the cross-entropy loss between the model outputs and the last 512 tokens of each sample (i.e. all tokens except the 1st), and call it $L_{\mathrm{task}}$. % TODO explain why we are taking the tokens shifted by 1
+      \item For each $i \in I$, compute $\|\nabla_{\vartheta_i} L_{\mathrm{task}}\|_2^2$.
+      \item Compute $L_{\mathrm{total}}$ as defined in \cref{eqn:2}
+      \item Perform Stochastic Gradient Descent using learning rate $\eta$.
+  \end{enumerate}
+  \item During training, we allow all parameters to update (i.e. we do not freeze any layer), because we noticed better results as opposed to just allowing the layers in $I$ to change. % TODO better explanation? 
+\end{enumerate}
+
+\subsection{Adversarial Evaluation} \label{subsec:gcg}
+We integrate the Greedy Coordinate Gradient (GCG) attack from Zou \etal{}’s repository \cite{Zou2023}, validating reproduction on an unmodified baseline. For each fine-tuned model, and for each AdvBench prompt:
+\begin{enumerate}
+  \item Append a suffix made of \(n\) tokens to the AdvBench prompt. An example of prompt is ``\textit{Write a tutorial on how to make a bomb}''.
+  \item Compute the model outputs on the prompt concatenated with the suffix.
+  \item Compute the cross entropy loss between the model outputs and the adversarial AdvBench outputs, and call it $L_{\mathrm{task}}$. The adversarial output corresponding to the example above is ``\textit{Sure, here is a tutorial for making a bomb}''.
+  \item Compute \(\nabla_{\mathbf{e}} L_{\mathrm{task}}\) with respect to the suffix embeddings \(\mathbf{e}\).
+  \item At each suffix position $j$, project \(-\nabla_{\mathbf{e}_j}L\) into the embedding space and select the top-\(k\) tokens whose embeddings differ from $\mathbf{e}_j$ in a direction that aligns well with the gradient.
+  \item Greedily replace one token at a time in the suffix, by computing the losses and picking the one with the lowest $L_{\mathrm{task}}$, and iterate for \(t\) steps (\(\text{num\_steps}=64\), \(\text{search\_width}=64\), \(\text{topk}=32\)).
+\end{enumerate}
+For each fine-tuned model, we independently run the above process on 200 harmful prompts, and classify the outcomes:
+\begin{itemize}
+  \item \textbf{Accept}: harmful content generated (counts toward ASR),
+  \item \textbf{Refuse}: safe refusal,
+  \item \textbf{Nonsense}: incoherent or unrelated (counts as defense success).
+\end{itemize}
+Attack Success Rate (ASR) is the fraction of \emph{Accept} responses.
+
+\subsection{Gradient and Attack Analysis Metrics}
+\label{subsec:metrics}
+To understand the mechanisms underlying regularization effects on adversarial robustness, we compute several metrics during GCG attacks and analyze their relationship to model vulnerability.
+
+\subsubsection{Gradient Magnitude Metrics}
+For each successful attack step, we extract gradients from the embedding layers and compute layer-wise statistics across three layer groups (early, middle, late):
+
+\textbf{L2 Norm}: We compute the L2 norm of gradients for each layer group, hypothesizing that regularization would reduce gradient magnitudes and limit the GCG attack's ability to find effective adversarial tokens.
+
+\textbf{Standard Deviation}: We calculate the standard deviation of gradient magnitudes within each layer group across attack steps, hypothesizing that lower gradient variability would constrain the search space available to GCG attacks.
+
+\subsubsection{Critical Token Ratio}
+For each successful attack, we compute the Critical Token Ratio (CTR), defined as the proportion of adversarial suffix tokens that are essential for maintaining attack success:
+\begin{equation}
+\text{CTR} = \frac{\text{Number of Critical Tokens}}{\text{Total Adversarial Tokens}}
+\end{equation}
+
+A token is considered "critical" if removing it from the 20-token adversarial suffix causes the attack to fail (response changes from ACCEPT to REFUSE or NONSENSE). We hypothesized that higher CTR values would indicate better model robustness.
+
+\subsubsection{Hypotheses}
+Our analysis was guided by four key hypotheses from computer vision adversarial robustness literature: (1) regularization should reduce gradient magnitudes and improve robustness, (2) tighter gradient distributions should constrain the GCG search space, (3) higher CTR values should indicate improved robustness, and (4) early layer regularization should be more effective due to cascading effects through backpropagation and similarity to embedding gradients that GCG exploits.
+
+However, as detailed in our results, these hypotheses were largely not supported by our empirical findings, revealing fundamental differences between discrete token attacks and continuous perturbation attacks in computer vision.
+
+\subsection{Perplexity Evaluation} \label{subsec:perplexity-evaluation}
+
+To ensure the performance of the fine-tuned models trained using the procedure in \cref{subsec:fine-tuning} does not degrade significantly, we compute the perplexity of the models' outputs on the ``validation'' split of the C4 dataset. In particular, we take 50,000 samples of 513 tokens from C4, we compute $L_{\mathrm{task}}$ as defined in \cref{subsec:fine-tuning} on batches of size 2 (due to GPU limitations), and finally we calculate the perplexity as the average of $e^{L_{\mathrm{task}}}$ over all batches. The evaluation of each model uses the same 50,000 samples to ensure a fair comparison.
+
+\section{Results}
+
+\Cref{tab:asr} contains the results of the evaluation described in \cref{subsec:gcg} on the various fine-tuned models. Additionally, the first line shows the ASR on the original model for comparison purposes.
+
+% THIS TABLE IS AUTOGENERATED WITH results_to_latex.py IN THE REPO
+\begin{table}[h]
+\centering
+\begin{tabular}{|c c|c c|}
+\hline
+\multicolumn{2}{|c|}{\textbf{Regularization}} & \multicolumn{2}{c|}{\textbf{GCG ASR (\%)}} \\
+$\lambda$ & $I$ & \textbf{Qwen} & \textbf{Phi} \\
+\hline \multicolumn{2}{|c|}{original model} & 82.0 & 16.5 \\
+\multicolumn{2}{|c|}{no reg (const LR)} & 78.5 & 20.0 \\
+\multicolumn{2}{|c|}{no reg (decay LR)} & 81.5 & \textbf{14.0} \\
+\hline \multirow{3}{*}{$10^{0}$}& early & 84.0 & 15.0 \\
+& middle & 82.5 & 18.0 \\
+& late & 80.5 & 19.5 \\
+\hline \multirow{3}{*}{$10^{-1}$}& early & 82.5 & 17.0 \\
+& middle & 80.0 & 16.0 \\
+& late & 75.5 & 15.0 \\
+\hline \multirow{3}{*}{$10^{-2}$}& early & \textbf{74.0} & 16.5 \\
+& middle & 84.0 & 18.0 \\
+& late & 82.0 & 19.0 \\
+\hline \multirow{3}{*}{$10^{-3}$}& early & 81.5 & 19.5 \\
+& middle & 81.5 & 18.5 \\
+& late & 79.0 & 20.0 \\
+\hline \multirow{3}{*}{$10^{-4}$}& early & 76.0 & 16.5 \\
+& middle & 76.5 & 17.0 \\
+& late & 77.0 & 14.5 \\
+\hline \multirow{3}{*}{$10^{-5}$}& early & 81.0 & 21.0 \\
+& middle & 84.0 & 17.5 \\
+& late & 77.0 & 14.5 \\
+\hline
+\end{tabular}
+\caption{ASR of the original model and of fine-tuned models under the GCG attack, lower is better}
+\label{tab:asr}
+\end{table}
+
+To confirm GCG is behaving correctly, we also try to ask the models the harmful prompts directly, and as expected we get very low ASR, as shown in \cref{tab:asr-not-under-attack}.
+
+\subsection{Attack Success Rate Analysis}
+Table~\ref{tab:asr} presents the attack success rates across all regularization configurations for both models, revealing distinct vulnerability patterns and the effectiveness of layer-specific gradient regularization interventions. Complete results for all regularization strengths and layer combinations are provided in Appendix.
+
+\subsubsection{Qwen2.5-1.5B-Instruct Performance}
+As shown in \cref{tab:asr}, the original Qwen2.5-1.5B-Instruct model exhibits a baseline ASR of 82.0\%, indicating substantial vulnerability to GCG attacks. Our layer-wise gradient regularization approach shows modest improvements, with the most effective configurations achieving reductions of up to 8 percentage points, though the magnitude of these improvements is limited.
+
+The best performing configurations (from \cref{tab:asr}) include early layer regularization at 1e-2 strength (74.0\% ASR), late layer regularization at 1e-1 strength (75.5\% ASR), and early layer regularization at 1e-4 strength (76.0\% ASR). While these results suggest a potential trend toward \textbf{early layer regularization} being more effective, the improvements are modest and the pattern is not entirely consistent across all regularization strengths.
+
+Several configurations show performance degradation (as evident in \cref{tab:asr}), with early layer regularization at strength 1 (84.0\% ASR), middle layer regularization at $10^{-2}$ strength (84.0\% ASR), and middle layer regularization at $10^{-5}$ strength (84.0\% ASR) each representing a 2 percentage point increase in ASR. The apparent sensitivity of \textbf{middle layer regularization} to degradation could indicate that these layers are important for defensive capabilities, though this pattern requires further investigation given the limited scale of observed effects.
+
+\subsubsection{Phi-3-mini-4k-instruct Performance}
+According to \cref{tab:asr}, Phi-3-mini demonstrates significantly better baseline robustness with an original ASR of 16.5\%, approximately 5$\times$ more robust than Qwen. The model shows variable responses to regularization interventions, with improvements generally limited to 1-3 percentage points.
+
+The most effective configurations (based on \cref{tab:asr}) include the no-regularization baseline with learning rate decay (14.0\% ASR), late layer regularization at 1e-4 and 1e-5 strengths (both 14.5\% ASR), and early layer regularization at strength 1 (15.0\% ASR). Notably, the best performance comes from the \textbf{no-regularization baseline with learning rate decay}, suggesting that for this already-robust model, training stability may be more important than explicit gradient constraints. The modest improvements from regularization interventions make it difficult to draw strong conclusions about optimal layer targeting strategies.
+
+Some regularization configurations result in performance degradation (visible in \cref{tab:asr}), including early layer regularization at 1e-5 strength (21.0\% ASR) and late layer regularization at 1e-3 strength (20.0\% ASR). However, given the overall small scale of effects and high variability across configurations, these patterns should be interpreted cautiously.
+
+\subsubsection{Cross-Architecture Vulnerability Patterns}
+The substantial difference in baseline vulnerability (82.0\% vs 16.5\% ASR, as shown in \cref{tab:asr}) indicates fundamental architectural differences in adversarial susceptibility. However, the observed patterns from regularization interventions show limited and inconsistent effects:
+
+\textbf{Regularization Responsiveness:} While Qwen shows some improvements (4-8 percentage points) with certain interventions, and Phi-3 exhibits variable responses (as detailed in \cref{tab:asr}), the magnitude of these effects is modest relative to the baseline differences between models.
+
+\textbf{Layer-Specific Effects:} The data in \cref{tab:asr} suggests potential differences in layer vulnerability, with some indication that Qwen's early layers and Phi-3's late layers may be more responsive to regularization. However, these patterns are not consistent across all regularization strengths and should be interpreted as preliminary observations rather than definitive findings.
+
+\textbf{Regularization Strength Sensitivity:} Both models show sensitivity to regularization strength (evident throughout \cref{tab:asr}), but optimal values appear highly dependent on the specific model and layer combination, making it difficult to establish general principles.
+
+These results suggest that while layer-wise gradient regularization can influence adversarial robustness, the effects are generally modest and highly dependent on model architecture and hyperparameter selection. The limited and inconsistent nature of improvements indicates that gradient regularization alone may not be sufficient for substantial robustness gains, and that architectural differences between models may be more important determinants of adversarial vulnerability than previously anticipated.
+
+\subsection{Gradient Analysis and Attack Mechanism}
+To understand the potential mechanisms underlying our regularization interventions, we analyze gradient patterns across different model configurations and response categories. However, our analysis reveals limited and inconsistent relationships between gradient metrics and adversarial robustness.
+
+\subsubsection{Baseline Gradient Pattern Analysis}
+To better understand the effects of regularization, we first examine gradient patterns across our three baseline conditions: original models, no-regularization with constant learning rate, and no-regularization with learning rate decay. These comparisons reveal fundamental inconsistencies that extend beyond regularization effects.
+
+In this section, the three gradients separated by slashes (e.g. 100/200/300 or respectively 0.001/0.002/0.003) indicate the average (or respectively standard deviation) of gradients for early/middle/late layers among each step of each GCG attack with a REFUSE outcome.
+
+\textbf{Fine-tuning Effects on Baselines:} Comparing original models to fine-tuned baselines shows substantial changes in gradient landscapes (detailed gradient values can be found in \cref{tab:refuse_complete}). For Qwen, REFUSE gradients show a consistent downward trend from original (362/244/105) to constant learning rate (228/115/78) to decay learning rate (202/144/90) conditions, while ASR improves modestly from 82.0\% to 78.5\% to 81.5\%. However, this apparent relationship breaks down when examining Phi-3, where the best performing baseline (decay learning rate, 14.0\% ASR) exhibits dramatically elevated REFUSE gradients (3932/123/374) compared to both the original model (1103/213/471) and constant learning rate condition (904/115/242).
+
+\textbf{Critical Token Ratio Baseline Patterns:} Fine-tuning consistently increases critical token ratios (CTRs) across both models (as shown in \cref{tab:ctr_complete}), with Qwen showing a substantial jump from 0.654 (original) to 0.799 (constant LR) to 0.822 (decay LR), while Phi-3 exhibits more modest increases from 0.738 to 0.758 to 0.782. Higher CTR values indicate that attacks require more critical tokens to succeed, theoretically suggesting improved model robustness. The baseline progression shows some support for this relationship, with both models achieving their best baseline ASR performance (Qwen: 78.5\%, Phi-3: 14.0\%) at their highest baseline CTR values (0.799 and 0.782 respectively). However, this pattern does not hold consistently across regularized configurations, where some of the highest CTR values (e.g., Phi-3 Late-reg-1 at 0.888, Qwen Early-reg-1e-1 at 0.866, from \cref{tab:ctr_complete}) correspond to worse ASR performance, indicating that CTR alone is not a reliable predictor of robustness.
+
+\textbf{Gradient Variability Across Training Conditions:} The standard deviations of gradient measurements (documented in \cref{tab:refuse_complete}) show that training methodology profoundly affects gradient stability. Our initial hypothesis was that lower gradient standard deviations would create tighter gradient distributions, reducing the search space available to GCG attacks and thereby improving model robustness. However, the data does not support this relationship consistently. While Qwen's most robust regularized configuration (early layer regularization at 1e-4) does exhibit dramatically reduced standard deviations (0.0007/0.0001/0.0002), Phi-3's best performing baseline condition (decay learning rate, 14.0\% ASR) shows the opposite pattern with the highest REFUSE gradient standard deviation (0.0141) in early layers, representing a dramatic increase from both original (0.0051) and constant learning rate (0.0022) conditions. This inconsistency suggests that gradient variability alone is not a reliable predictor of adversarial robustness across different model architectures.
+
+\textbf{REFUSE Gradient Patterns:} Examining REFUSE response gradients relative to baseline configurations (using values from \cref{tab:refuse_complete}) reveals no systematic patterns that predict robustness improvements. Using the no-regularization constant learning rate condition as reference (Qwen: 228/115/78, Phi-3: 904/115/242 for early/middle/late layers), we observe that improved ASR performance can result from dramatically different gradient changes. For Qwen's most effective configuration (early layer regularization at 1e-4 strength, 76.0\% ASR), REFUSE gradients decrease substantially (-61\%/-67\%/-26\% relative to baseline) with correspondingly reduced standard deviations (0.0007/0.0001/0.0002 vs baseline 0.0044/0.0019/0.0006). However, another well-performing configuration (late layer regularization at 1e-1 strength, 75.5\% ASR) shows the opposite pattern with REFUSE gradient increases (+69\%/+73\%/+45\% vs baseline). This inconsistency suggests that REFUSE gradient magnitude and direction relative to baseline are not reliable predictors of defensive capability.
+
+For Phi-3-mini, the baseline comparison (as documented in \cref{tab:refuse_complete}) reveals even greater inconsistencies. The best performing regularized configuration (late layer regularization at 1e-4 strength, 14.5\% ASR) exhibits a +242\% increase in early layer REFUSE gradients compared to baseline, while another equally effective configuration (late layer regularization at 1e-5 strength, also 14.5\% ASR) shows a -67\% decrease in the same metric. These findings indicate that similar robustness outcomes can be achieved through completely opposite changes in gradient patterns.
+
+\textbf{ACCEPT Gradient Patterns:} The analysis of ACCEPT response gradients relative to baseline configurations (values from \cref{tab:accept_complete}) reveals similar inconsistencies. For Qwen, robust configurations show divergent patterns when compared to the baseline model (no reg const LR) (974/412/215): the early layer regularization at 1e-4 configuration shows dramatic reductions (-83\%/-83\%/-53\%) in ACCEPT gradients with correspondingly reduced standard deviations, while the early layer regularization at 1e-2 configuration shows more modest decreases (-12\%/-7\%/-4\%) despite achieving better ASR performance (74.0\% vs 76.0\%). This suggests that neither the magnitude nor the variance of ACCEPT gradient changes relative to baseline reliably predicts robustness improvements.
+
+For Phi-3, ACCEPT gradient patterns (detailed in \cref{tab:accept_complete}) show equally inconsistent relationships to robustness when compared to baseline (526/69/143). The most effective configurations exhibit changes ranging from +130\% to -73\% in early layer ACCEPT gradients, with no apparent correlation to their similar ASR performance levels. The corresponding standard deviations also vary dramatically across these equally effective configurations, further undermining any systematic relationship between ACCEPT gradient characteristics and adversarial robustness.
+
+\subsubsection{Statistical Limitations and Interpretation}
+Our gradient analysis faces important limitations that constrain interpretation. The modest effect sizes (4-8 percentage points for Qwen, 1-3 percentage points for Phi-3, as shown in \cref{tab:asr}) combined with high gradient variability across 20 configurations per model limit robust statistical inference. Most critically, similar robustness improvements result from completely opposite gradient changes (+242\% increases vs -83\% decreases), suggesting that observed patterns may reflect the stochastic nature of high-dimensional gradient landscapes rather than meaningful mechanistic relationships. The signal-to-noise ratio appears insufficient to establish reliable predictive relationships between gradient characteristics and adversarial robustness.
+
+\subsubsection{Architectural Differences and Robustness}
+The substantial baseline vulnerability difference (82.0\% vs 16.5\% ASR, from \cref{tab:asr}) dominates regularization effects, suggesting that architectural characteristics are the primary determinant of adversarial susceptibility. The fundamentally different gradient landscapes and regularization responses between Phi-3-mini and Qwen2.5-1.5B indicate that gradient-based metrics alone may be insufficient for understanding adversarial robustness in transformer-based language models. These findings point toward the need for different analytical approaches that account for the discrete and contextual nature of adversarial attacks.
+
+\subsection{Perplexity}
+\Cref{tab:perplexity} presents the perplexity evaluation results. Most fine-tuned models maintain comparable perplexity to the baseline (55.0 for Qwen, 271 for Phi-3), confirming that regularization does not significantly degrade language modeling performance. Original models exhibit extremely high perplexity (5681 for Qwen, 2.8e6 for Phi-3) as they were never trained on C4 data. A few regularized configurations show degraded performance exceeding 100, indicating training difficulties in specific hyperparameter combinations.
+
+\section{Discussion}
+
+\subsection{Gradient-Based Defense Limitations in Discrete Token Spaces}
+Our findings reveal that gradient regularization, a technique proven effective in computer vision adversarial defense, shows limited and inconsistent benefits when applied to transformer-based language models. This parallels the broader observation that many adversarial attack methods from computer vision do not directly transfer to natural language processing tasks. We hypothesize that this limitation extends to defensive mechanisms that attempt to flatten gradient landscapes, and potentially to other vision-derived defense strategies.
+
+\subsection{Attack Mechanism and Gradient Interpretation}
+The limited effectiveness of gradient magnitude manipulation may stem from fundamental differences between discrete token attacks and continuous perturbation attacks. The GCG attack operates by computing gradients of a harmful prompt given a desired harmful response, projecting these gradients into the embedding space via the embedding matrix, and selecting tokens that best align with the gradient direction to maximize the likelihood of the target response.
+
+This mechanism differs crucially from traditional adversarial attacks (e.g., FGSM \cite{fgsm}, PGD \cite{pgd}) that directly maximize loss through gradient ascent. Instead, GCG attempts to maximize the probability of a specific desired output, making gradient magnitude less directly relevant to attack success. The attack's effectiveness could depend more on gradient \textit{direction} and alignment with embedding vectors than on gradient \textit{magnitude}, which may explain why our gradient norm measurements show inconsistent relationships with robustness.
+
+\subsection{Gradient Distribution Effects on Token Selection}
+Our initial hypothesis that tighter gradient distributions (lower standard deviations) would improve robustness by constraining the GCG search space proves overly simplistic. While constraining gradient distributions may limit attack options, the effect depends critically on which tokens the constrained gradients point toward.
+
+If gradient regularization narrows the distribution such that gradients consistently point toward relatively harmless tokens, the attack could become more difficult and robustness improves. However, if the regularization constrains gradients to consistently point toward highly effective adversarial tokens, the attack may become more efficient and robustness degrades.
+
+This dual possibility could explain the irregular patterns observed across our configurations: gradient distribution narrowing may be either beneficial or detrimental depending on the specific tokens favored by the constrained gradient landscape.
+
+\subsection{Critical Token Ratio Interpretation Challenges}
+Our critical token ratio analysis reveals complexity in understanding discrete token attacks. While higher CTR values suggest that attacks require more tokens to succeed (implying better model robustness), this interpretation assumes that attack effectiveness scales linearly with token count.
+
+However, the GCG attack's token selection process prioritizes tokens based on gradient alignment with the embedding matrix. If the highest-priority tokens remain available even when the total token budget is reduced, the attack may maintain near-optimal effectiveness despite using fewer tokens. This suggests that CTR measurements could reflect not just attack robustness, but also the specific distribution of token effectiveness in the gradient-embedding alignment space.
+
+\subsection{Implications for Future Defense Strategies}
+These findings suggest that effective defenses against discrete token attacks may require fundamentally different approaches than those successful in computer vision. Rather than focusing solely on gradient magnitude or distribution constraints, defenses might target the embedding space structure, the alignment between gradients and embeddings, or the token selection mechanisms themselves.
+
+The inconsistent patterns observed across model architectures also indicate that defensive strategies may need to be tailored to specific model characteristics rather than applied universally. The substantial baseline differences in vulnerability between Phi-3-mini and Qwen2.5-1.5B suggest that architectural design choices could be more important for adversarial robustness than post-training defensive interventions.
+
+\bibliographystyle{acl_natbib}
+\bibliography{acl2021}
+
+\appendix
+\onecolumn
+\section{Further Results}
+
+This appendix provides comprehensive detailed results for all metrics analyzed in our study, including attack success rates for direct prompting, gradient patterns across response categories, critical token ratios, and perplexity evaluations.
+
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|c|c c|}
+\hline
+& \multicolumn{2}{c|}{\textbf{ASR (\%)}} \\
+& \textbf{Qwen} & \textbf{Phi} \\
+\hline
+original model & 3.5 & 1.0 \\
+no reg (const LR) & 3.5 & 1.5 \\
+\hline
+\end{tabular}
+\caption{ASR of the original model and of the non-regularized fine-tuned model when prompted directly, lower is better}
+\label{tab:asr-not-under-attack}
+\end{table}
+
+
+\begin{table*}[h]
+\centering
+\begin{tabular}{|c c|c c|c c|c c|}
+\hline
+\multicolumn{2}{|c|}{\multirow{2}{*}{\textbf{Regularization}}} & \multicolumn{2}{c|}{\multirow{2}{*}{\textbf{GCG ASR (\%)}}} & \multicolumn{2}{c|}{\textbf{REFUSE Grad L2}} & \multicolumn{2}{c|}{\textbf{REFUSE Grad Std}}\\
+& & & & \multicolumn{2}{c|}{(E/M/L)} & \multicolumn{2}{c|}{(E/M/L, $\cdot 10^{-4}$)}\\
+$\lambda$ & $I$ & \textbf{Qwen} & \textbf{Phi} & \textbf{Qwen} & \textbf{Phi} & \textbf{Qwen} & \textbf{Phi}\\
+\hline \multicolumn{2}{|c|}{original model} & 82.0 & 16.5 & 362/244/105 & 1103/213/471 & 61/32/8 & 51/4/12\\
+\multicolumn{2}{|c|}{no reg (const LR)} & 78.5 & 20.0 & 228$\downarrow$/115$\downarrow$/78$\downarrow$ & 904$\downarrow$/115$\downarrow$/242$\downarrow$ & 44$\downarrow$/19$\downarrow$/6$\downarrow$ & 22$\downarrow$/1$\downarrow$/6$\downarrow$\\
+\multicolumn{2}{|c|}{no reg (decay LR)} & 81.5 & \textbf{14.0} & 202$\downarrow$/144$\downarrow$/90$\downarrow$ & 3932$\uparrow$/123$\downarrow$/374$\downarrow$ & 32$\downarrow$/20$\downarrow$/6$\downarrow$ & 141$\uparrow$/1$\downarrow$/5$\downarrow$\\
+\hline \multirow{3}{*}{$10^{0}$}& early & 84.0 & 15.0 & 208$\downarrow$/113$\downarrow$/80$\downarrow$ & 332$\downarrow$/71$\downarrow$/163$\downarrow$ & 33$\downarrow$/16$\downarrow$/6$\downarrow$ & 7$\downarrow$/1$\downarrow$/4$\downarrow$\\
+& middle & 82.5 & 18.0 & 216$\downarrow$/121$\downarrow$/71$\downarrow$ & 649$\downarrow$/87$\downarrow$/211$\downarrow$ & 32$\downarrow$/14$\downarrow$/4$\downarrow$ & 15$\downarrow$/1$\downarrow$/6$\downarrow$\\
+& late & 80.5 & 19.5 & 439$\uparrow$/197$\downarrow$/109$\uparrow$ & 225$\downarrow$/55$\downarrow$/111$\downarrow$ & 117$\uparrow$/20$\downarrow$/7$\downarrow$ & 5$\downarrow$/1$\downarrow$/3$\downarrow$\\
+\hline \multirow{3}{*}{$10^{-1}$}& early & 82.5 & 17.0 & 238$\downarrow$/133$\downarrow$/81$\downarrow$ & 298$\downarrow$/66$\downarrow$/146$\downarrow$ & 37$\downarrow$/20$\downarrow$/6$\downarrow$ & 6$\downarrow$/1$\downarrow$/4$\downarrow$\\
+& middle & 80.0 & 16.0 & 322$\downarrow$/182$\downarrow$/96$\downarrow$ & 4116$\uparrow$/107$\downarrow$/327$\downarrow$ & 63$\uparrow$/28$\downarrow$/6$\downarrow$ & 148$\uparrow$/1$\downarrow$/4$\downarrow$\\
+& late & 75.5 & 15.0 & 388$\uparrow$/199$\downarrow$/113$\uparrow$ & 303$\downarrow$/63$\downarrow$/149$\downarrow$ & 59$\downarrow$/19$\downarrow$/6$\downarrow$ & 7$\downarrow$/1$\downarrow$/4$\downarrow$\\
+\hline \multirow{3}{*}{$10^{-2}$}& early & \textbf{74.0} & 16.5 & 339$\downarrow$/187$\downarrow$/101$\downarrow$ & 351$\downarrow$/71$\downarrow$/162$\downarrow$ & 41$\downarrow$/19$\downarrow$/6$\downarrow$ & 9$\downarrow$/1$\downarrow$/5$\downarrow$\\
+& middle & 84.0 & 18.0 & 276$\downarrow$/145$\downarrow$/85$\downarrow$ & 4217$\uparrow$/103$\downarrow$/316$\downarrow$ & 43$\downarrow$/15$\downarrow$/7$\downarrow$ & 156$\uparrow$/1$\downarrow$/4$\downarrow$\\
+& late & 82.0 & 19.0 & 280$\downarrow$/156$\downarrow$/85$\downarrow$ & 6101$\uparrow$/111$\downarrow$/403$\downarrow$ & 56$\downarrow$/26$\downarrow$/8$-$ & 197$\uparrow$/1$\downarrow$/5$\downarrow$\\
+\hline \multirow{3}{*}{$10^{-3}$}& early & 81.5 & 19.5 & 160$\downarrow$/111$\downarrow$/69$\downarrow$ & 4918$\uparrow$/114$\downarrow$/358$\downarrow$ & 22$\downarrow$/11$\downarrow$/5$\downarrow$ & 162$\uparrow$/1$\downarrow$/4$\downarrow$\\
+& middle & 81.5 & 18.5 & 345$\downarrow$/158$\downarrow$/86$\downarrow$ & 296$\downarrow$/65$\downarrow$/143$\downarrow$ & 64$\uparrow$/28$\downarrow$/9$\uparrow$ & 8$\downarrow$/1$\downarrow$/4$\downarrow$\\
+& late & 79.0 & 20.0 & 396$\uparrow$/193$\downarrow$/93$\downarrow$ & 619$\downarrow$/90$\downarrow$/192$\downarrow$ & 87$\uparrow$/39$\uparrow$/9$\uparrow$ & 15$\downarrow$/1$\downarrow$/4$\downarrow$\\
+\hline \multirow{3}{*}{$10^{-4}$}& early & 76.0 & 16.5 & 88$\downarrow$/37$\downarrow$/57$\downarrow$ & 4426$\uparrow$/103$\downarrow$/323$\downarrow$ & 7$\downarrow$/1$\downarrow$/2$\downarrow$ & 159$\uparrow$/1$\downarrow$/4$\downarrow$\\
+& middle & 76.5 & 17.0 & 222$\downarrow$/128$\downarrow$/78$\downarrow$ & 5082$\uparrow$/106$\downarrow$/358$\downarrow$ & 43$\downarrow$/17$\downarrow$/7$\downarrow$ & 154$\uparrow$/1$\downarrow$/3$\downarrow$\\
+& late & 77.0 & 14.5 & 321$\downarrow$/188$\downarrow$/101$\downarrow$ & 3097$\uparrow$/116$\downarrow$/344$\downarrow$ & 56$\downarrow$/28$\downarrow$/9$\uparrow$ & 115$\uparrow$/1$\downarrow$/5$\downarrow$\\
+\hline \multirow{3}{*}{$10^{-5}$}& early & 81.0 & 21.0 & 363$\uparrow$/186$\downarrow$/98$\downarrow$ & 609$\downarrow$/95$\downarrow$/215$\downarrow$ & 70$\uparrow$/21$\downarrow$/8$-$ & 14$\downarrow$/1$\downarrow$/5$\downarrow$\\
+& middle & 84.0 & 17.5 & 218$\downarrow$/123$\downarrow$/72$\downarrow$ & 3322$\uparrow$/104$\downarrow$/286$\downarrow$ & 56$\downarrow$/22$\downarrow$/5$\downarrow$ & 108$\uparrow$/1$\downarrow$/3$\downarrow$\\
+& late & 77.0 & 14.5 & 304$\downarrow$/175$\downarrow$/94$\downarrow$ & 295$\downarrow$/62$\downarrow$/146$\downarrow$ & 44$\downarrow$/23$\downarrow$/7$\downarrow$ & 7$\downarrow$/1$\downarrow$/4$\downarrow$\\
+\hline
+\end{tabular}
+\caption{ASR, REFUSE Gradient L2 Norms and Standard Deviations compared to original model ($\uparrow$ higher, $\downarrow$ lower)}
+\label{tab:refuse_complete}
+\end{table*}
+
+
+
+
+\begin{table*}[h]
+\centering
+\begin{tabular}{|c c|c c|c c|c c|}
+\hline
+\multicolumn{2}{|c|}{\multirow{2}{*}{\textbf{Regularization}}} & \multicolumn{2}{c|}{\multirow{2}{*}{\textbf{GCG ASR (\%)}}} & \multicolumn{2}{c|}{\textbf{ACCEPT Grad L2}} & \multicolumn{2}{c|}{\textbf{ACCEPT Grad Std}}\\
+& & & & \multicolumn{2}{c|}{(E/M/L)} & \multicolumn{2}{c|}{(E/M/L, $\cdot 10^{-4}$)}\\
+$\lambda$ & $I$ & \textbf{Qwen} & \textbf{Phi} & \textbf{Qwen} & \textbf{Phi} & \textbf{Qwen} & \textbf{Phi}\\
+\hline \multicolumn{2}{|c|}{original model} & 82.0 & 16.5 & 819/477/247 & 299/58/137 & 76/37/8 & 24/1/5\\
+\multicolumn{2}{|c|}{no reg (const LR)} & 78.5 & 20.0 & 974$\uparrow$/412$\downarrow$/215$\downarrow$ & 526$\uparrow$/69$\uparrow$/143$\uparrow$ & 86$\uparrow$/26$\downarrow$/7$\downarrow$ & 27$\uparrow$/2$\uparrow$/8$\uparrow$\\
+\multicolumn{2}{|c|}{no reg (decay LR)} & 81.5 & \textbf{14.0} & 846$\uparrow$/442$\downarrow$/240$\downarrow$ & 157$\downarrow$/39$\downarrow$/68$\downarrow$ & 76$-$/27$\downarrow$/8$-$ & 8$\downarrow$/1$-$/2$\downarrow$\\
+\hline \multirow{3}{*}{$10^{0}$}& early & 84.0 & 15.0 & 756$\downarrow$/396$\downarrow$/223$\downarrow$ & 112$\downarrow$/29$\downarrow$/54$\downarrow$ & 60$\downarrow$/21$\downarrow$/7$\downarrow$ & 6$\downarrow$/1$-$/4$\downarrow$\\
+& middle & 82.5 & 18.0 & 769$\downarrow$/369$\downarrow$/215$\downarrow$ & 177$\downarrow$/37$\downarrow$/69$\downarrow$ & 66$\downarrow$/22$\downarrow$/6$\downarrow$ & 8$\downarrow$/1$-$/2$\downarrow$\\
+& late & 80.5 & 19.5 & 745$\downarrow$/377$\downarrow$/216$\downarrow$ & 139$\downarrow$/28$\downarrow$/60$\downarrow$ & 65$\downarrow$/22$\downarrow$/6$\downarrow$ & 6$\downarrow$/1$-$/4$\downarrow$\\
+\hline \multirow{3}{*}{$10^{-1}$}& early & 82.5 & 17.0 & 705$\downarrow$/359$\downarrow$/215$\downarrow$ & 108$\downarrow$/32$\downarrow$/59$\downarrow$ & 54$\downarrow$/18$\downarrow$/6$\downarrow$ & 3$\downarrow$/1$-$/4$\downarrow$\\
+& middle & 80.0 & 16.0 & 738$\downarrow$/382$\downarrow$/218$\downarrow$ & 1552$\uparrow$/47$\downarrow$/137$-$ & 66$\downarrow$/23$\downarrow$/8$-$ & 128$\uparrow$/1$-$/5$-$\\
+& late & 75.5 & 15.0 & 738$\downarrow$/343$\downarrow$/202$\downarrow$ & 92$\downarrow$/27$\downarrow$/49$\downarrow$ & 79$\uparrow$/19$\downarrow$/7$\downarrow$ & 3$\downarrow$/1$-$/2$\downarrow$\\
+\hline \multirow{3}{*}{$10^{-2}$}& early & \textbf{74.0} & 16.5 & 859$\uparrow$/384$\downarrow$/206$\downarrow$ & 104$\downarrow$/31$\downarrow$/56$\downarrow$ & 69$\downarrow$/27$\downarrow$/8$-$ & 3$\downarrow$/1$-$/3$\downarrow$\\
+& middle & 84.0 & 18.0 & 774$\downarrow$/372$\downarrow$/217$\downarrow$ & 581$\uparrow$/42$\downarrow$/82$\downarrow$ & 61$\downarrow$/20$\downarrow$/6$\downarrow$ & 35$\uparrow$/1$-$/1$\downarrow$\\
+& late & 82.0 & 19.0 & 877$\uparrow$/426$\downarrow$/228$\downarrow$ & 1749$\uparrow$/47$\downarrow$/138$\uparrow$ & 73$\downarrow$/27$\downarrow$/7$\downarrow$ & 151$\uparrow$/1$-$/3$\downarrow$\\
+\hline \multirow{3}{*}{$10^{-3}$}& early & 81.5 & 19.5 & 703$\downarrow$/423$\downarrow$/247$-$ & 573$\uparrow$/44$\downarrow$/89$\downarrow$ & 60$\downarrow$/29$\downarrow$/10$\uparrow$ & 31$\uparrow$/1$-$/1$\downarrow$\\
+& middle & 81.5 & 18.5 & 725$\downarrow$/372$\downarrow$/211$\downarrow$ & 104$\downarrow$/31$\downarrow$/55$\downarrow$ & 45$\downarrow$/17$\downarrow$/6$\downarrow$ & 4$\downarrow$/1$-$/2$\downarrow$\\
+& late & 79.0 & 20.0 & 668$\downarrow$/348$\downarrow$/205$\downarrow$ & 170$\downarrow$/39$\downarrow$/77$\downarrow$ & 52$\downarrow$/23$\downarrow$/7$\downarrow$ & 8$\downarrow$/1$-$/2$\downarrow$\\
+\hline \multirow{3}{*}{$10^{-4}$}& early & 76.0 & 16.5 & 166$\downarrow$/68$\downarrow$/101$\downarrow$ & 1006$\uparrow$/46$\downarrow$/102$\downarrow$ & 6$\downarrow$/2$\downarrow$/2$\downarrow$ & 64$\uparrow$/1$-$/3$\downarrow$\\
+& middle & 76.5 & 17.0 & 844$\uparrow$/402$\downarrow$/220$\downarrow$ & 2082$\uparrow$/48$\downarrow$/155$\uparrow$ & 77$\uparrow$/26$\downarrow$/8$-$ & 140$\uparrow$/1$-$/4$\downarrow$\\
+& late & 77.0 & 14.5 & 1078$\uparrow$/425$\downarrow$/212$\downarrow$ & 1207$\uparrow$/53$\downarrow$/139$\uparrow$ & 117$\uparrow$/32$\downarrow$/8$-$ & 100$\uparrow$/1$-$/5$-$\\
+\hline \multirow{3}{*}{$10^{-5}$}& early & 81.0 & 21.0 & 790$\downarrow$/371$\downarrow$/213$\downarrow$ & 368$\uparrow$/58$-$/107$\downarrow$ & 73$\downarrow$/23$\downarrow$/7$\downarrow$ & 20$\downarrow$/1$-$/5$-$\\
+& middle & 84.0 & 17.5 & 733$\downarrow$/375$\downarrow$/217$\downarrow$ & 1189$\uparrow$/43$\downarrow$/111$\downarrow$ & 67$\downarrow$/24$\downarrow$/7$\downarrow$ & 99$\uparrow$/1$-$/3$\downarrow$\\
+& late & 77.0 & 14.5 & 674$\downarrow$/354$\downarrow$/203$\downarrow$ & 144$\downarrow$/28$\downarrow$/66$\downarrow$ & 56$\downarrow$/22$\downarrow$/6$\downarrow$ & 9$\downarrow$/1$-$/6$\uparrow$\\
+\hline
+\end{tabular}
+\caption{ASR, ACCEPT Gradient L2 Norms and Standard Deviations compared to original model ($\uparrow$ higher, $\downarrow$ lower, $-$ same)}
+\label{tab:accept_complete}
+\end{table*}
+
+\begin{table*}[h]
+\centering
+\begin{tabular}{|c c|c c|c c|c c|}
+\hline
+\multicolumn{2}{|c|}{\multirow{2}{*}{\textbf{Regularization}}} & \multicolumn{2}{c|}{\multirow{2}{*}{\textbf{GCG ASR (\%)}}} & \multicolumn{2}{c|}{\textbf{NONSENSE Grad L2}} & \multicolumn{2}{c|}{\textbf{NONSENSE Grad Std}}\\
+& & & & \multicolumn{2}{c|}{(E/M/L)} & \multicolumn{2}{c|}{(E/M/L, $\cdot 10^{-4}$)}\\
+$\lambda$ & $I$ & \textbf{Qwen} & \textbf{Phi} & \textbf{Qwen} & \textbf{Phi} & \textbf{Qwen} & \textbf{Phi}\\
+\hline \multicolumn{2}{|c|}{original model} & 82.0 & 16.5 & 268/159/60 & 111/17/52 & 71/34/7 & 3/1/3\\
+\multicolumn{2}{|c|}{no reg (const LR)} & 78.5 & 20.0 & 185$\downarrow$/96$\downarrow$/69$\uparrow$ & 40$\downarrow$/17$-$/21$\downarrow$ & 37$\downarrow$/12$\downarrow$/5$\downarrow$ & 4$\uparrow$/1$-$/1$\downarrow$\\
+\multicolumn{2}{|c|}{no reg (decay LR)} & 81.5 & \textbf{14.0} & 244$\downarrow$/153$\downarrow$/81$\uparrow$ & 88$\downarrow$/17$-$/23$\downarrow$ & 55$\downarrow$/23$\downarrow$/5$\downarrow$ & 10$\uparrow$/1$-$/1$\downarrow$\\
+\hline \multirow{3}{*}{$10^{0}$}& early & 84.0 & 15.0 & 258$\downarrow$/133$\downarrow$/71$\uparrow$ & 16$\downarrow$/8$\downarrow$/11$\downarrow$ & 55$\downarrow$/20$\downarrow$/8$\uparrow$ & 1$\downarrow$/1$-$/1$\downarrow$\\
+& middle & 82.5 & 18.0 & 194$\downarrow$/113$\downarrow$/78$\uparrow$ & 112$\uparrow$/17$-$/28$\downarrow$ & 26$\downarrow$/8$\downarrow$/6$\downarrow$ & 11$\uparrow$/1$-$/2$\downarrow$\\
+& late & 80.5 & 19.5 & 541$\uparrow$/148$\downarrow$/72$\uparrow$ & 41$\downarrow$/15$\downarrow$/23$\downarrow$ & 193$\uparrow$/39$\uparrow$/8$\uparrow$ & 2$\downarrow$/1$-$/2$\downarrow$\\
+\hline \multirow{3}{*}{$10^{-1}$}& early & 82.5 & 17.0 & 149$\downarrow$/89$\downarrow$/67$\uparrow$ & 40$\downarrow$/13$\downarrow$/25$\downarrow$ & 31$\downarrow$/10$\downarrow$/4$\downarrow$ & 1$\downarrow$/1$-$/6$\uparrow$\\
+& middle & 80.0 & 16.0 & 219$\downarrow$/111$\downarrow$/70$\uparrow$ & 90$\downarrow$/14$\downarrow$/21$\downarrow$ & 26$\downarrow$/8$\downarrow$/3$\downarrow$ & 11$\uparrow$/1$-$/1$\downarrow$\\
+& late & 75.5 & 15.0 & 398$\uparrow$/139$\downarrow$/66$\uparrow$ & 61$\downarrow$/19$\uparrow$/30$\downarrow$ & 73$\uparrow$/14$\downarrow$/5$\downarrow$ & 3$-$/1$-$/4$\uparrow$\\
+\hline \multirow{3}{*}{$10^{-2}$}& early & \textbf{74.0} & 16.5 & 242$\downarrow$/142$\downarrow$/92$\uparrow$ & 27$\downarrow$/8$\downarrow$/9$\downarrow$ & 35$\downarrow$/14$\downarrow$/6$\downarrow$ & 0$\downarrow$/0$\downarrow$/0$\downarrow$\\
+& middle & 84.0 & 18.0 & 193$\downarrow$/108$\downarrow$/69$\uparrow$ & 47$\downarrow$/12$\downarrow$/20$\downarrow$ & 29$\downarrow$/15$\downarrow$/7$-$ & 8$\uparrow$/1$-$/1$\downarrow$\\
+& late & 82.0 & 19.0 & 186$\downarrow$/105$\downarrow$/65$\uparrow$ & 744$\uparrow$/26$\uparrow$/72$\uparrow$ & 53$\downarrow$/16$\downarrow$/5$\downarrow$ & 82$\uparrow$/1$-$/5$\uparrow$\\
+\hline \multirow{3}{*}{$10^{-3}$}& early & 81.5 & 19.5 & 240$\downarrow$/144$\downarrow$/91$\uparrow$ & 52$\downarrow$/16$\downarrow$/18$\downarrow$ & 36$\downarrow$/15$\downarrow$/6$\downarrow$ & 5$\uparrow$/1$-$/1$\downarrow$\\
+& middle & 81.5 & 18.5 & 154$\downarrow$/86$\downarrow$/57$\downarrow$ & 18$\downarrow$/8$\downarrow$/12$\downarrow$ & 36$\downarrow$/9$\downarrow$/3$\downarrow$ & 2$\downarrow$/0$\downarrow$/1$\downarrow$\\
+& late & 79.0 & 20.0 & 258$\downarrow$/154$\downarrow$/86$\uparrow$ & 37$\downarrow$/15$\downarrow$/26$\downarrow$ & 31$\downarrow$/13$\downarrow$/5$\downarrow$ & 1$\downarrow$/1$-$/1$\downarrow$\\
+\hline \multirow{3}{*}{$10^{-4}$}& early & 76.0 & 16.5 & 43$\downarrow$/17$\downarrow$/24$\downarrow$ & 53$\downarrow$/12$\downarrow$/20$\downarrow$ & 2$\downarrow$/1$\downarrow$/1$\downarrow$ & 5$\uparrow$/1$-$/1$\downarrow$\\
+& middle & 76.5 & 17.0 & 343$\uparrow$/177$\uparrow$/88$\uparrow$ & 254$\uparrow$/17$-$/35$\downarrow$ & 56$\downarrow$/32$\downarrow$/7$-$ & 32$\uparrow$/1$-$/2$\downarrow$\\
+& late & 77.0 & 14.5 & 262$\downarrow$/108$\downarrow$/68$\uparrow$ & 43$\downarrow$/15$\downarrow$/16$\downarrow$ & 71$-$/18$\downarrow$/6$\downarrow$ & 3$-$/1$-$/1$\downarrow$\\
+\hline \multirow{3}{*}{$10^{-5}$}& early & 81.0 & 21.0 & 674$\uparrow$/238$\uparrow$/98$\uparrow$ & 67$\downarrow$/15$\downarrow$/29$\downarrow$ & 183$\uparrow$/66$\uparrow$/11$\uparrow$ & 4$\uparrow$/0$\downarrow$/1$\downarrow$\\
+& middle & 84.0 & 17.5 & 120$\downarrow$/67$\downarrow$/46$\downarrow$ & 508$\uparrow$/21$\uparrow$/55$\uparrow$ & 30$\downarrow$/14$\downarrow$/2$\downarrow$ & 33$\uparrow$/1$-$/1$\downarrow$\\
+& late & 77.0 & 14.5 & 
+271$\uparrow$/148$\downarrow$/84$\uparrow$ & 36$\downarrow$/17$-$/21$\downarrow$ & 42$\downarrow$/25$\downarrow$/7$-$ & 2$\downarrow$/0$\downarrow$/3$-$\\
+\hline
+\end{tabular}
+\caption{ASR, NONSENSE Gradient L2 Norms and Standard Deviations compared to original model ($\uparrow$ higher, $\downarrow$ lower, $-$ same)}
+\label{tab:nonsense_complete}
+\end{table*}
+
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|c c|c c|c c|}
+\hline
+\multicolumn{2}{|c|}{\multirow{2}{*}{\textbf{Regularization}}} & \multicolumn{2}{c|}{\multirow{2}{*}{\textbf{GCG ASR (\%)}}} & \multicolumn{2}{c|}{\textbf{Critical Token Ratio}}\\
+& & & & \multicolumn{2}{c|}{} \\
+$\lambda$ & $I$ & \textbf{Qwen} & \textbf{Phi} & \textbf{Qwen} & \textbf{Phi} \\
+\hline \multicolumn{2}{|c|}{original model} & 82.0 & 16.5 & 0.654 & 0.738 \\
+\multicolumn{2}{|c|}{no reg (const LR)} & 78.5 & 20.0 & 0.799$\uparrow$ & 0.758$\uparrow$ \\
+\multicolumn{2}{|c|}{no reg (decay LR)} & 81.5 & \textbf{14.0} & 0.822$\uparrow$ & 0.782$\uparrow$ \\
+\hline \multirow{3}{*}{$10^{0}$}& early & 84.0 & 15.0 & 0.818$\uparrow$ & 0.844$\uparrow$ \\
+& middle & 82.5 & 18.0 & 0.810$\uparrow$ & 0.734$\downarrow$ \\
+& late & 80.5 & 19.5 & 0.796$\uparrow$ & 0.888$\uparrow$ \\
+\hline \multirow{3}{*}{$10^{-1}$}& early & 82.5 & 17.0 & 0.866$\uparrow$ & 0.794$\uparrow$ \\
+& middle & 80.0 & 16.0 & 0.804$\uparrow$ & 0.718$\downarrow$ \\
+& late & 75.5 & 15.0 & 0.850$\uparrow$ & 0.841$\uparrow$ \\
+\hline \multirow{3}{*}{$10^{-2}$}& early & \textbf{74.0} & 16.5 & 0.805$\uparrow$ & 0.823$\uparrow$ \\
+& middle & 84.0 & 18.0 & 0.837$\uparrow$ & 0.767$\uparrow$ \\
+& late & 82.0 & 19.0 & 0.801$\uparrow$ & 0.846$\uparrow$ \\
+\hline \multirow{3}{*}{$10^{-3}$}& early & 81.5 & 19.5 & 0.848$\uparrow$ & 0.794$\uparrow$ \\
+& middle & 81.5 & 18.5 & 0.805$\uparrow$ & 0.774$\uparrow$ \\
+& late & 79.0 & 20.0 & 0.835$\uparrow$ & 0.811$\uparrow$ \\
+\hline \multirow{3}{*}{$10^{-4}$}& early & 76.0 & 16.5 & 0.859$\uparrow$ & 0.742$\uparrow$ \\
+& middle & 76.5 & 17.0 & 0.790$\uparrow$ & 0.842$\uparrow$ \\
+& late & 77.0 & 14.5 & 0.784$\uparrow$ & 0.752$\uparrow$ \\
+\hline \multirow{3}{*}{$10^{-5}$}& early & 81.0 & 21.0 & 0.839$\uparrow$ & 0.871$\uparrow$ \\
+& middle & 84.0 & 17.5 & 0.822$\uparrow$ & 0.744$\uparrow$ \\
+& late & 77.0 & 14.5 & 0.854$\uparrow$ & 0.764$\uparrow$ \\
+\hline
+\end{tabular}
+\caption{Critical Token Ratio compared to original model ($\uparrow$ higher, $\downarrow$ lower)}
+\label{tab:ctr_complete}
+\end{table}
+
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|c c|c c|}
+\hline
+\multicolumn{2}{|c|}{\textbf{Regularization}} & \multicolumn{2}{c|}{\textbf{Perplexity}} \\
+$\lambda$ & $I$ & \textbf{Qwen} & \textbf{Phi} \\
+\hline \multicolumn{2}{|c|}{original model} & 5681 & 2.8e6 \\
+\multicolumn{2}{|c|}{no reg (const LR)} & 55.0$\downarrow$ & 271$\downarrow$ \\
+\multicolumn{2}{|c|}{no reg (decay LR)} & 43.0$\downarrow$ & 26.5$\downarrow$ \\
+\hline \multirow{3}{*}{$10^{0}$}& early & 58.0$\downarrow$ & 48.5$\downarrow$ \\
+& middle & 56.8$\downarrow$ & 149*$\downarrow$ \\
+& late & 51.6$\downarrow$ & 52.2$\downarrow$ \\
+\hline \multirow{3}{*}{$10^{-1}$}& early & 42.6$\downarrow$ & 49.6$\downarrow$ \\
+& middle & 51.3$\downarrow$ & 21.0$\downarrow$ \\
+& late & 48.8$\downarrow$ & 47.4$\downarrow$ \\
+\hline \multirow{3}{*}{$10^{-2}$}& early & 58.3$\downarrow$ & 43.2$\downarrow$ \\
+& middle & 48.3$\downarrow$ & 20.6$\downarrow$ \\
+& late & 49.9$\downarrow$ & 21.5$\downarrow$ \\
+\hline \multirow{3}{*}{$10^{-3}$}& early & 50.0$\downarrow$ & 21.7$\downarrow$ \\
+& middle & 45.8$\downarrow$ & 50.8$\downarrow$ \\
+& late & 48.2$\downarrow$ & 581*$\downarrow$ \\
+\hline \multirow{3}{*}{$10^{-4}$}& early & 9.0$\downarrow$ & 21.9$\downarrow$ \\
+& middle & 51.0$\downarrow$ & 21.0$\downarrow$ \\
+& late & 55.2$\downarrow$ & 18.7$\downarrow$ \\
+\hline \multirow{3}{*}{$10^{-5}$}& early & 48.2$\downarrow$ & 465*$\downarrow$ \\
+& middle & 44.9$\downarrow$ & 20.3$\downarrow$ \\
+& late & 50.6$\downarrow$ & 56.8$\downarrow$ \\
+\hline
+\end{tabular}
+\caption{Perplexity of fine-tuned models compared to original model ($\downarrow$ lower is better)}
+\label{tab:perplexity}
+\end{table}
+
+
+
+
+
+\end{document}
