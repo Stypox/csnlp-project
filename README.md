@@ -4,9 +4,11 @@
 
 **Students**: Cagatay Gultekin, Fabio Giovanazzi, Adam Rahmoun, Tobias Kaiser.
 
-**Midterm progress report**: [progress_report.pdf](./progress_report/progress_report.pdf)
+**Initial project proposal**: [CSNL_Proposal__Final.pdf](./meta/CSNL_Proposal__Final.pdf)
 
-**Final paper**: [Investigating_Layer_Specific_Vulnerability_of_LLMs_to_Adversarial_Attacks.pdf](./paper/Investigating_Layer_Specific_Vulnerability_of_LLMs_to_Adversarial_Attacks.pdf)
+**Midterm progress report**: [progress_report.pdf](./meta/progress_report.pdf)
+
+**Final paper**: [Investigating_Layer_Specific_Vulnerability_of_LLMs_to_Adversarial_Attacks.pdf](./meta/Investigating_Layer_Specific_Vulnerability_of_LLMs_to_Adversarial_Attacks.pdf)
 
 ### Environment setup
 
