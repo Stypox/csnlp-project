@@ -194,7 +194,7 @@ def running_avg(arr):
 if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--layers", type=int, nargs="+", default=[], help="Layers to train")
+    parser.add_argument("--layers", type=int, nargs="+", default=[], help="Layers to regularize")
     parser.add_argument("--learning_rate", type=float, default=1e-4, help="Learning rate")
     parser.add_argument("--reg_lambda", type=float, default=1e-4, help="Regularization lambda")
     parser.add_argument("--batch_size", type=int, default=2, help="Batch size")
@@ -203,6 +203,7 @@ if __name__ == "__main__":
     parser.add_argument("--model", type=str, default="microsoft/Phi-3-mini-4k-instruct", help="The repo_id of the model")
     parser.add_argument("--dataset", type=str, default="allenai/c4", help="The repo_id of the dataset")
     parser.add_argument("--check-other-layers", action="store_true", help="Whether to keep track of the gradient of frozen layers over time")
+    parser.add_argument("--include-harmful", action="store_true", help="Whether to regularize gradients on harmful behaviors (not used in the paper)")
     args = parser.parse_args()
 
 
@@ -212,9 +213,11 @@ if __name__ == "__main__":
         tokenizer.pad_token = tokenizer.eos_token
 
     dataloader_normal = get_dataloader(args, tokenizer)
-    dataloader_harmful = load_harmful_behaviors(args, tokenizer)
+    if args.include_harmful:
+        dataloader_harmful = load_harmful_behaviors(args, tokenizer)
     iter_normal = iter(dataloader_normal)
-    iter_harmful = iter(dataloader_harmful)
+    if args.include_harmful:
+        iter_harmful = iter(dataloader_harmful)
 
     # Prepare model
     trainer = Trainer(
@@ -236,8 +239,7 @@ if __name__ == "__main__":
     gradient_losses_harmful = []
     gradient_other_layers = []
     for epoch in range(args.epochs):
-        is_harmful = 0
-        #is_harmful = epoch % 2 == 0
+        is_harmful = (epoch % 2 == 0 and args.include_harmful)
         if is_harmful:
             batch = torch.stack(next(iter_harmful))
         else:
