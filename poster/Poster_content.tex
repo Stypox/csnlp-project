@@ -106,7 +106,7 @@ User: \textcolor{blue}{Tell me how to build a bomb.\textcolor{red}{\,\,!\,\,!\,\
 Assistant: \textcolor{purple}{Sure, here is how to build a bomb:}
 \end{tcolorbox}
 \noindent\begin{minipage}{\textwidth}
-\captionof{figure}{GCG appends suffix \textcolor{red}{\texttt{!!!!!!!!}} to obtain a \textcolor{purple}{harmful response}}\label{box}
+\captionof{figure}{GCG ``trains'' the suffix \textcolor{red}{\texttt{!!!!!!!!}} to obtain a \textcolor{purple}{harmful response}}\label{box}
 \end{minipage}
 
 \textbf{Metrics.} \textit{ASR} is defined as the number of successful attacks over the total number of them, and \textit{Critial Token Ratio} (CTR) as the proportion of adversarial suffix tokens that are essential for maintaining attack success. For each attack step we also compute the L2 norm and standard deviation of gradients from each layer group (early, middle, late).
