@@ -5,12 +5,12 @@
 
 **Initial project proposal**: [CSNL_Proposal__Final.pdf](./meta/CSNL_Proposal__Final.pdf)  
 **Midterm progress report**: [progress_report.pdf](./meta/progress_report.pdf)  
-**Final paper**: [Investigating_Layer_Specific_Vulnerability_of_LLMs_to_Adversarial_Attacks.pdf](./meta/Investigating_Layer_Specific_Vulnerability_of_LLMs_to_Adversarial_Attacks.pdf)
+**Final paper**: [Investigating_Layer_Specific_Vulnerability_of_LLMs_to_Adversarial_Attacks.pdf](./meta/Investigating_Layer_Specific_Vulnerability_of_LLMs_to_Adversarial_Attacks.pdf)  
 **Poster**: [poster.pdf](./meta/poster.pdf)
 
 See [below](#reproducing-our-results) for how to reproduce our results.
 
-[<img src="./meta/poster.png" width=400 alt="Poster" />](./meta/poster.pdf)
+[<img src="./meta/poster.png" width=600 alt="Poster" />](./meta/poster.pdf)
 
 ## Reproducing our results
 
