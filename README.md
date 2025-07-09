@@ -6,6 +6,9 @@
 **Initial project proposal**: [CSNL_Proposal__Final.pdf](./meta/CSNL_Proposal__Final.pdf)  
 **Midterm progress report**: [progress_report.pdf](./meta/progress_report.pdf)  
 **Final paper**: [Investigating_Layer_Specific_Vulnerability_of_LLMs_to_Adversarial_Attacks.pdf](./meta/Investigating_Layer_Specific_Vulnerability_of_LLMs_to_Adversarial_Attacks.pdf)
+**Poster**: [poster.pdf](./meta/poster.pdf)
+
+[![Poster](./meta/poster.png)](./meta/poster.pdf)
 
 ### Environment setup
 

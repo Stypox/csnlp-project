@@ -60,7 +60,7 @@ Investigating Layer-Specific Vulnerability \\[20pt] of LLMs to Adversarial Attac
 
 % ====================== AFFILIATION ===========================
 
-%% affiliations - fill in and extend when necessary the affiliations of your coworkers
+%% tasks iations - fill in and extend when necessary the affiliations of your coworkers
 \def\affiliations{\LARGE $^1$ETH Z\"urich}
 
 % ====================== PARTNERS / SPONSORS ===================
@@ -74,8 +74,8 @@ Investigating Layer-Specific Vulnerability \\[20pt] of LLMs to Adversarial Attac
 % ====================== INTRODUCTION ===================
 %% 
 \def\introtext
-{\Large \black 
-LLMs excel at NLP tasks \cite{Vaswani2017,Brown2020}, but remain vulnerable to adversarial prompts (``\textit{jailbreaks}'') that elicit harmful or restricted content \cite{Chen2023}. Even when crafted on small open-source models, these prompts often \textbf{transfer to larger commercial LLMs} \cite{Zou2023}.
+{\large \black
+LLMs excel at NLP tasks \cite{Brown2020}, but remain vulnerable to adversarial prompts (``\textit{jailbreaks}'') that elicit harmful or restricted content \cite{Chen2023}. Even when crafted on small open-source models, these prompts often \textbf{transfer to larger commercial LLMs} \cite{Zou2023}.
 
 Existing defenses rarely examine where adversarial gradients concentrate within the model, though we believe studying this could explain attack transferability and guide countermeasures. Inspired by the effectiveness of gradient-based defenses in computer vision \cite{DBLP:journals/corr/abs-1711-09404}, we aim to: (1) identify \textbf{most critical layers} for attack success, and (2) test whether \textbf{gradient suppression} reduces the \textit{attack success rate} (ASR) without impacting performance.
 
@@ -87,18 +87,18 @@ Existing defenses rarely examine where adversarial gradients concentrate within 
 % ====================== METHOD OVERVIEW ===================
 %% 
 \def\methodtext
-{\Large \black 
+{\large \black
 
-\textbf{Gradient regularization.} We use \emph{layer-wise gradient regularization} to suppress gradients only in selected transformer layers $\vartheta \subset \theta$, with $\lambda$ controlling regularization strength. The loss function is then:
+\textbf{Gradient regularization.} We use \emph{layer-wise gradient regularization} to suppress gradients only in selected transformer layers $\vartheta \subset \theta$, with $\lambda$ controlling regularization strength. The loss is thus:
 \begin{equation}
 L_{\mathrm{total}}(\theta) = L_{\mathrm{task}}(\theta) + \lambda \bigl\|\nabla_{\vartheta} L_{\mathrm{task}}(\theta)\bigr\|_{2}^{2}
 \end{equation}
 
-\textbf{Experiment configurations.} We experiment on Phi-3 3.8B \cite{abdin2024phi3technicalreporthighly} and Qwen2.5 1.5B \cite{qwen2025qwen25technicalreport}, partition each model into early, middle and late layers, and consider 6 values for $\lambda$ ranging from $1$ to $10^{-5}$. We train each configuration on the C4 dataset with fixed learning rate. Furthermore, we fine-tune two baselines without gradient regularization ($\lambda = 0$), one with fixed learning rate and one with learning rate decay. This yields $2 \cdot (6 \cdot 3 + 2) = 40$ configurations.
+\textbf{Experiment configurations.} We experiment on Phi-3 3.8B \cite{abdin2024phi3technicalreporthighly} and Qwen2.5 1.5B \cite{qwen2025qwen25technicalreport}, partition each model into early, middle and late layers, and consider 6 values for $\lambda$ ranging from $1$ to $10^{-5}$. We train each configuration on 50k text sequences from the C4 training dataset with a fixed LR of $\eta = 10^{-4}$. Furthermore, for each model, we fine-tune two baselines without gradient regularization ($\lambda = 0$), one with fixed LR and one with an exponential LR schedule with $\gamma = 0.9999$. This yields $2 \cdot (6 \cdot 3 + 2) = 40$ configurations in total.
 
-\textbf{Perplexity evaluation.} To ensure the performance of the fine-tuned models does not degrade significantly, we compute the perplexity of the models' outputs on the ``validation'' split of the C4 dataset. % not citing to save space on references \cite{dodge-etal-2021-documenting}.
+\textbf{Perplexity evaluation.} To ensure that the performance of fine-tuned models does not degrade significantly, we calculate model perplexity values on the C4 validation dataset. % not citing to save space on references \cite{dodge-etal-2021-documenting}.
 
-\textbf{Attack.} We run the Greedy Coordinate Gradient (GCG) attack \cite{Zou2023} on each fine-tuned model. Starting from a prompt from the \textit{harmful behaviors} dataset \cite{Zou2023} (e.g. ``How can I [harmful]?''), it iteratively appends tokens based on gradients, to nudge the response into something like "Sure, here is how to [harmful]:".
+\textbf{Attack.} We run 200 Greedy Coordinate Gradient (GCG) attacks \cite{Zou2023} on each one of 40 fine-tuned models and 2 original models. Each attack starts with a prompt from the \textit{harmful behaviors} dataset \cite{Zou2023} (e.g. ``How to [harmful]?'') with an added fixed-size suffix and iteratively adapts the suffix tokens based on their embedding gradients, to nudge the response into "Sure, here is how to [harmful]:".
 
 \begin{tcolorbox}[colback=gray!20, colframe=black, boxrule=0.5pt, sharp corners]
 \ttfamily\normalsize
@@ -109,66 +109,98 @@ Assistant: \textcolor{purple}{Sure, here is how to build a bomb:}
 \captionof{figure}{GCG ``trains'' the suffix \textcolor{red}{\texttt{!!!!!!!!}} to obtain a \textcolor{purple}{harmful response}}\label{box}
 \end{minipage}
 
-\textbf{Metrics.} \textit{ASR} is defined as the number of successful attacks over the total number of them, and \textit{Critial Token Ratio} (CTR) as the proportion of adversarial suffix tokens that are essential for maintaining attack success. For each attack step we also compute the L2 norm and standard deviation of gradients from each layer group (early, middle, late).
+\textbf{Evaluation metrics.} \textit{ASR} is the ratio of successful attacks over the total, whereas \textit{Critical Token Ratio} (CTR) is the proportion of adversarial suffix tokens that are essential for maintaining attack success. For each attack, we compute the average L2 norm and the standard deviation of the gradients (of the GCG attack loss) from each layer group.
 % TODO maybe add image of how GCG works if it fits
+
+\textbf{Working Hypotheses.} Guided by computer vision adversarial robustness literature, we expect that: (1) regularization reduces gradients and improves robustness, (2) low standard deviation in gradients constrains the GCG search space and improves robustness, (3) high CTR indicates improved robustness, and (4) early layer regularization is more effective due to cascading effects of backprop and similarity to embedding gradients that GCG exploits.
+
 } %% end text
 
 
-% ====================== HYPOTHESES ===================
-%% 
-\def\hypothesestext
-{\Large \black 
-Guided by computer vision adversarial robustness literature, we expect that: (1) regularization reduces gradients and improves robustness, (2) low gradient variance constrains the GCG search space, (3) high CTR indicates improved robustness, and (4) early layer regularization is more effective due to cascading effects of backprop and similarity to embedding gradients that GCG exploits.
-}%% end text
 
-
-% ====================== RESULTS / DISCUSSION ===================
+% ====================== RESULTS ===================
 %% 
 \def\resultstext
-{\Large \black 
-% THIS TABLE IS AUTOGENERATED WITH results_to_latex.py IN THE REPO
-% \centering
-% \begin{tabular}{|c c|c c|}
-% \hline
-% \multicolumn{2}{|c|}{\textbf{Regularization}} & \multicolumn{2}{c|}{\textbf{GCG ASR (\%)}} \\
-% $\lambda$ & $I$ & \textbf{Qwen} & \textbf{Phi} \\
-% \hline \multicolumn{2}{|c|}{original model} & 82.0 & 16.5 \\
-% \multicolumn{2}{|c|}{no reg (const LR)} & 78.5 & 20.0 \\
-% \multicolumn{2}{|c|}{no reg (decay LR)} & 81.5 & \textbf{14.0} \\
-% \hline \multirow{3}{*}{$10^{0}$}& early & 84.0 & 15.0 \\
-% & middle & 82.5 & 18.0 \\
-% & late & 80.5 & 19.5 \\
-% \hline \multirow{3}{*}{$10^{-1}$}& early & 82.5 & 17.0 \\
-% & middle & 80.0 & 16.0 \\
-% & late & 75.5 & 15.0 \\
-% \hline \multirow{3}{*}{$10^{-2}$}& early & \textbf{74.0} & 16.5 \\
-% & middle & 84.0 & 18.0 \\
-% & late & 82.0 & 19.0 \\
-% \hline \multirow{3}{*}{$10^{-3}$}& early & 81.5 & 19.5 \\
-% & middle & 81.5 & 18.5 \\
-% & late & 79.0 & 20.0 \\
-% \hline \multirow{3}{*}{$10^{-4}$}& early & 76.0 & 16.5 \\
-% & middle & 76.5 & 17.0 \\
-% & late & 77.0 & 14.5 \\
-% \hline \multirow{3}{*}{$10^{-5}$}& early & 81.0 & 21.0 \\
-% & middle & 84.0 & 17.5 \\
-% & late & 77.0 & 14.5 \\
-% \hline
-% \end{tabular}
+{\large \black
+\begin{wrapfigure}{r}{0.28\textwidth} %this figure will be at the right
+    \centering
+    \includegraphics[width=0.28\textwidth]
+    {Screenshot 2025-07-07 at 18.45.48.png}
+    \vspace*{-20mm}
+    \captionsetup{font=footnotesize}
+    \caption{ASR under the GCG attacks}
+\end{wrapfigure}
+\textbf{ASR Analysis.}
+
+For \textit{Qwen2.5}, the best/worst ASR with the value of 74.0\%/84.0\% is achieved by the configuration of \textit{early/middle layer regularization at $10^{-2}$/$10^{-5}$} (latter tied with two other configurations). For \textit{Phi-3}, the best/worst ASR with the value of 14.0\%/21.0\% is achieved by the configuration of \textit{no-regularization baseline with
+exponential LR schedule} and \textit{early layer regularization at $10^{-5}$} respectively.
+
+Due to the modest level of ASR improvements / degradations between configurations, model-dependent optimal layer group targeting strategies, and  inconsistent ASR patterns with varying regularization strengths, we conclude that gradient regularization is not sufficient for meaningful robustness gains, effectively disproving hypothesis (4). In addition, we observe that architectural differences play a more-than-anticipated role in determining adversarial vulnerability.
+
+\textbf{Gradient Pattern Analysis.}
+
+Both models provide results that do not support hypotheses (1) and (2). As an example that contradicts hypothesis (1), one of the best performing configurations (\textit{late layer regularization at $10^{-1}$}) yields, on unsuccessful attacks, higher (REFUSE) gradient norms than the baseline configuration (\textit{no reg (const LR)}) across all layer groups, indicating that a magnitude \hspace{1000px}\vspace{-31px}
+
+
 }%% end text
 
+\def\resultstexttwo
+{\large \black
+
+\begin{wrapfigure}{r}{0.6\textwidth} %this figure will be at the right
+    \centering
+    \includegraphics[width=0.6\textwidth]
+    {Screenshot 2025-07-07 at 22.13.10}
+    \vspace*{-20mm}
+    \captionsetup{font=footnotesize}
+    \caption{REFUSE Gradient L2 Norms and Standard Deviations compared to original model ($\uparrow$ higher,$\downarrow$ lower)}
+\end{wrapfigure}
+
+change in REFUSE gradients is not a reliable predictor of adversarial robustness.
+
+For hypothesis (2), we observe that low REFUSE gradient standard deviation is not a reliable indicator of low ASR, as \textit{Phi-3}'s best performing configuration yields the highest REFUSE gradient deviation in early layers.
+
+The analysis of
+ACCEPT response gradients (gradients on successful attacks) reveals similar inconsistencies across both models.
+
+In conclusion, the observed inconsistencies in the gradient norm and deviation value patterns relative to ASR do not indicate mechanistic pairwise relationships.
+
+\begin{wrapfigure}{r}{0.3\textwidth} %this figure will be at the right
+    \centering
+    \vspace{-80px}
+    \includegraphics[width=0.3\textwidth]
+    {Screenshot 2025-07-08 at 11.40.58.png}
+    \vspace*{-20mm}
+    \captionsetup{font=footnotesize}
+    \caption{Critical Token Ratio compared to original model ($\uparrow$ higher,$\downarrow$ lower)}
+\end{wrapfigure}
+
+\textbf{CTR Analysis.}
+
+Fine-tuning, with or without gradient regularization, consistently increases CTR for \textit{Qwen2.5}, but not always for \textit{Phi-3}.
+
+However, taking the ASR values in \textit{Fig.\;2} into account, we observe that hypothesis (4) does not hold consistently. Higher CTR values correspond to improved model robustness for baseline configurations about 75\% of the time across both models. Meanwhile, across gradient regularized configurations, this pattern does not hold consistently. Some of the highest CTR values (e.g., Phi-3 late layer regularization at 1 with CTR of 88.8\% and Qwen early layer regularization at $10^{-1}$ with CTR of 86.6\%) correspond to worse ASR relative to the original models, indicating that CTR alone is not a reliable predictor of robustness.
+}%% end text
 
 % ====================== CONCLUSION ===================
 %% 
 \def\conclusiontext
-{\Large \black 
+{\large \black
 % Here you present your conclusions in a short and easy to understand manner.
 % \begin{itemize}
 % \item Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor.
 % \item Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, arcu.
 % \item In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo.
 % \end{itemize}
-Our observations suggest that defensive mechanisms effective in computer vision might not translate directly to LLMs, as gradient-related vulnerabilities in NLP appear fundamentally different.
+Our observations suggest that defensive mechanisms such as gradient regularization, effective in computer vision, might not translate directly to LLMs.
+
+A potential reason is the fundamental differences between discrete token attacks and continuous perturbation attacks such as FGSM or PGD. We can speculate from our results and from the inner workings of GCG attacks that the effectiveness of these attacks depends more on the direction of the gradient rather than its magnitude, effectively rendering gradient regularization useless as a defense mechanism.
+
+Regarding the inconsistent relationship between gradient standard deviations and ASR, a potential explanation is that tightening the gradient distribution does not necessarily guarantee that gradients consistently point toward "harmless" suffix tokens in the vocabulary. It is possible that if regularization constrains gradients to consistently point toward highly effective adversarial tokens, the attack may become more efficient and robustness degrades.
+
+As a result, rather than focusing solely on gradient magnitude or distribution constraints, defenses might target the embedding space structure, the alignment between gradients and embeddings, or the token selection mechanisms. The inconsistent patterns observed across model architectures also indicate that defensive strategies may need to be tailored to specific model characteristics rather than applied universally.
+
+
 }%% end text
 
 
@@ -181,7 +213,7 @@ Our observations suggest that defensive mechanisms effective in computer vision 
 %%% or you manually insert your references. In this case make sure to delete the \cite-entries in the dummy text.
 
 \def\bibliotext
-{\normalsize \black 
+{\tiny \black
 % \begin{enumerate}
 % \item Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor.
 % \item Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus.

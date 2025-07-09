@@ -13,7 +13,7 @@
 %%%
 \usepackage{graphicx}
 \usepackage{xcolor}            % color package 
-
+\usepackage{wrapfig}
 \usepackage{cite}
 
 %%%% page margins, don't change
@@ -151,32 +151,38 @@
 \end{minipage}%%% end Method
 \\[40pt]
 %%%
-\begin{minipage}[t]{\exHalfMinipage}%%% HYPOTHESES
-\LARGE { \white \bf 3 \ Working hypotheses}\\[-10pt]
-\begin{minipage}[t]{\exSubHalfMinipage}
-\begin{mdframed}[style=smallframe]
-\hypothesestext
-\end{mdframed}
-\end{minipage}
-\end{minipage}%%% end Hypotheses
-\\[40pt]
-\end{minipage}%%% end of left side
-\hspace{0.2cm}
-\begin{minipage}[t]{\exHalfMinipage}
-%===========================================================  RIGHT SIDE of poster
 
 \begin{minipage}[t]{\exHalfMinipage}%%% RESULTS and DISCUSSION
-\LARGE{\white  \bf 4 \ Results and Discussion}\\[-10pt]
+%\LARGE{\white  \bf 4 \ Results and Discussion}\\[-10pt]
+\LARGE{\white  \bf 3 \ Results}\\[-10pt]
 \begin{minipage}[t]{\exSubHalfMinipage}
 \begin{mdframed}[style=smallframe]
 \resultstext
 \end{mdframed}
+\end{minipage}
+\end{minipage}%%%% end Results
+\\[40pt]
+
+\end{minipage}%%% end of left side
+\hspace{0.2cm}
+\begin{minipage}[t]{\exHalfMinipage}
+
+%===========================================================  RIGHT SIDE of poster
+
+
+\begin{minipage}[t]{\exHalfMinipage}%%% RESULTS and DISCUSSION
+%\LARGE{\white  \bf 4 \ Results and Discussion}\\[-10pt]
+\begin{minipage}[t]{\exSubHalfMinipage}
+\begin{mdframed}[style=smallframe]
+\resultstexttwo
+\end{mdframed}
 \end{minipage} 
 \end{minipage}%%%% end Results
 \\[40pt]
+
 %%
 \begin{minipage}[t]{\exHalfMinipage}%%% CONCLUSION
-\LARGE{\white  \bf 5 \ Conclusion}\\[-10pt]
+\LARGE{\white  \bf 4 \ Conclusion and Further Discussions}\\[-10pt]
 \begin{minipage}[t]{\exSubHalfMinipage}
 \begin{mdframed}[style=smallframe]
 \conclusiontext

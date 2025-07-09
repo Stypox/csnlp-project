@@ -7,7 +7,7 @@
 %% conditions of the LaTeX Project Public License, either version 1.2
 %% of this license or (at your option) any later version.
 %% The latest version of this license is in
-%%    http://www.latex-project.org/lppl.txt
+%% Â  Â http://www.latex-project.org/lppl.txt
 %% and version 1.2 or later is part of all distributions of LaTeX
 %% version 1999/12/01 or later.
 %%
@@ -160,7 +160,7 @@
 \renewcommand{\footnotesize}{\fontsize{17.28}{22}\selectfont}
 \renewcommand{\small}{\fontsize{20.74}{25}\selectfont}
 \renewcommand{\normalsize}{\fontsize{24.88}{30}\selectfont}
-\renewcommand{\large}{\fontsize{29.86}{37}\selectfont}
+\renewcommand{\large}{\fontsize{25}{37}\selectfont}
 \renewcommand{\Large}{\fontsize{35.83}{45}\selectfont}
 \renewcommand{\LARGE}{\fontsize{43}{54}\selectfont}
 \renewcommand{\huge}{\fontsize{51.6}{64}\selectfont}
