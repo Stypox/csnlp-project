@@ -8,7 +8,11 @@
 **Final paper**: [Investigating_Layer_Specific_Vulnerability_of_LLMs_to_Adversarial_Attacks.pdf](./meta/Investigating_Layer_Specific_Vulnerability_of_LLMs_to_Adversarial_Attacks.pdf)
 **Poster**: [poster.pdf](./meta/poster.pdf)
 
-[![Poster](./meta/poster.png)](./meta/poster.pdf)
+See [below](#reproducing-our-results) for how to reproduce our results.
+
+[<img src="./meta/poster.png" width=400 alt="Poster" />](./meta/poster.pdf)
+
+## Reproducing our results
 
 ### Environment setup
 
